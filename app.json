@@ -15,7 +15,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.levanhoang312.StepsApp"
     },
     "web": {
       "bundler": "metro",
@@ -32,10 +33,20 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "809fbd1d-9d75-458e-9305-ca44062625ce"
+      }
+    },
+    "owner": "levanhoang312"
   }
 }
