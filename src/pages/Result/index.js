@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { StatusBar, Text, StyleSheet, View, Dimensions, Modal, TouchableOpacity, FlatList, ScrollView } from "react-native";
-//import { LineChart } from "react-native-chart-kit";
+import { StatusBar, Text, StyleSheet, View, Modal, TouchableOpacity, FlatList, ScrollView } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { openDB } from "../../../Database/database";
-import { createTable, loadStepsFromSQLite } from "../../../Database/DailyDatabase";
+import { createTable, loadStepsFromSQLite, getAllActivityData } from "../../../Database/DailyDatabase";
 import StepComparisonChart from '../../component/ChartResult'
 
 function Result() {
   const [modalVisible, setModalVisible] = useState(false);
   const [data, setData] = useState();
+  const [alldata, setAlldata] = useState();
   const [db, setDb] = useState();
+
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -24,12 +25,23 @@ function Result() {
           setData(loadData.steps)
         }
 
+        const getAlldata = await getAllActivityData(Database)
+        if (getAlldata) {
+          const stepsArray = getAlldata.map(item => item.steps);
+          setAlldata(stepsArray);
+          console.log("Tất cả dữ liệu bước chân:", stepsArray);
+        }
+
       } catch (error) {
         console.error("InitDb false:", error)
       }
+
     };
     initDatabase();
+
   }, [])
+
+  const average = alldata && alldata.length > 0 ? (alldata.reduce((sum, steps) => sum + steps, 0) / alldata.length).toFixed(0) : 0;
 
   const options = [
     { label: "Bước" },
@@ -61,11 +73,11 @@ function Result() {
                 </View>
                 <View>
                   <Text style={styles.label}>THƯỜNG</Text>
-                  <Text style={styles.averageSteps}>145</Text>
+                  <Text style={styles.averageSteps}>{average}</Text>
                 </View>
               </View>
 
-              <StepComparisonChart />
+              <StepComparisonChart average={average} />
 
               <TouchableOpacity
                 style={styles.button}
@@ -75,9 +87,12 @@ function Result() {
               </TouchableOpacity>
 
               <Text style={styles.note}>
-                Cho đến giờ, bạn đã đi ít bước hơn thường lệ.
+                {data >= average
+                  ? "Chúc mừng, bạn đã đi nhiều bước hơn thường lệ."
+                  : "Cho đến giờ, bạn đã đi ít bước hơn thường lệ."}
               </Text>
             </View>
+
           </View>
 
           {/* Modal */}

@@ -6,7 +6,7 @@ import { createTable, loadStepsFromSQLite } from "../../Database/DailyDatabase";
 
 const screenWidth = Dimensions.get("window").width;
 
-const StepComparisonChart = () => {
+const StepComparisonChart = ({ average }) => {
   const [labels, setLabels] = useState(["0:00", "", "00:00"]);
   const [dataSteps, setDataSteps] = useState([0, 0, 0]);
   const today = new Date().toISOString().split("T")[0];
@@ -35,7 +35,7 @@ const StepComparisonChart = () => {
     return () => clearInterval(interval); // Clear khi unmount
   }, []);
 
-  const averageSteps = [0, 60, 0]; // Số bước trung bình thường ngày (ví dụ)
+  const averageSteps = [0, average, 0]; // Số bước trung bình thường ngày
 
   const data = {
     labels,
@@ -49,7 +49,7 @@ const StepComparisonChart = () => {
         data: averageSteps, // Thường ngày
         color: (opacity = 1) => `rgba(100, 100, 100, ${opacity})`, // Xám
         strokeWidth: 2,
-        strokeDashArray: [5, 5], // Đường nét đứt để phân biệt
+        strokeDashArray: [5, 5],
       },
     ],
   };
@@ -78,7 +78,7 @@ const StepComparisonChart = () => {
           },
         }}
         style={{ borderRadius: 16 }}
-        withHorizontalLabels={false}
+        withHorizontalLabels={true}
         fromZero
       />
     </View>

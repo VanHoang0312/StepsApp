@@ -70,7 +70,7 @@ const Linechart = () => {
             {
               data: weeklySteps,
               color: (opacity = 1) => `rgba(0, 191, 255, ${opacity})`,
-              strokeWidth: 2,
+              strokeWidth: 4,
             },
           ],
         }}
