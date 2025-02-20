@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView, Switch } from 'react-native';
 import SwitchGoal from '../../component/SwitchGoal';
 import GoalWeight from './GoalWeight';
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { openDB } from '../../../Database/database';
+import {saveGoalToSQLite, loadGoalFromSQLite, createGoalsTable, loadLatestGoalFromSQLite} from '../../../Database/GoalsDatabase';
 
 function Goal() {
   const [goalTab, setGoalTab] = useState(1);
   const [steps, setSteps] = useState(6000);
-  const [calo, setCalo] = useState(200);
-  const [kilomet, setKilomet] = useState(3);
-  const [minutes, setMinutes] = useState(30)
+  const [calories, setCalories] = useState(200);
+  const [distance, setDistance] = useState(3);
+  const [activeTime, setActiveTime] = useState(30)
   const [isEnabled, setIsEnabled] = useState(false);
+  const [db, setDb] = useState(null);
 
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const navigation = useNavigation();
@@ -21,37 +24,79 @@ function Goal() {
     navigation.navigate('Thông báo');
   };
 
-  const increaseSteps = () => {
-    setSteps((prev) => prev + 500);
+  const today = new Date().toISOString().split('T')[0];
+
+  const saveGoal = async (updatedSteps, updatedDistance, updatedCalories, updatedActiveTime) => {
+    try {
+      const database = await openDB();
+      if (!database) {
+        console.error('Database not initialized!');
+        return;
+      }
+      await saveGoalToSQLite(database, today, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
+    
+    } catch (error) {
+      console.error('Error saving goal:', error);
+    }
   };
 
-  const increaseCalo = () => {
-    setCalo((prev) => prev + 100);
-  };
+  useEffect(() => {
+    const initDB = async () => {
+      try {
+        const database = await openDB();
+        setDb(database);
+        await createGoalsTable(database);
 
-  const increaseKilomet = () => {
-    setKilomet((prev) => prev + 1);
-  };
+        const savedGoal = await loadGoalFromSQLite(database, today);
 
-  const increaseMunites = () => {
-    setMinutes((prev) => prev + 30);
-  };
+        if (savedGoal) {
+          setSteps(savedGoal.steps);
+          setCalories(savedGoal.calories);
+          setDistance(savedGoal.distance);
+          setActiveTime(savedGoal.activeTime);
+        } else {
+          // Nếu chưa có mục tiêu hôm nay, lấy mục tiêu gần nhất
+          const latestGoal = await loadLatestGoalFromSQLite(database, today);
 
-  const decreaseSteps = () => {
-    setSteps((prev) => (prev - 500 > 0 ? prev - 500 : 0));
-  };
+          if (latestGoal) {
+            setSteps(latestGoal.steps);
+            setCalories(latestGoal.calories);
+            setDistance(latestGoal.distance);
+            setActiveTime(latestGoal.activeTime);
 
-  const decreaseCalo = () => {
-    setCalo((prev) => (prev - 100 > 0 ? prev - 100 : 0));
-  };
+            // Lưu lại mục tiêu đó cho ngày hôm nay
+            await saveGoalToSQLite(database, today, latestGoal.steps, latestGoal.distance, latestGoal.calories, latestGoal.activeTime);
+          } else {
+            // Nếu chưa có dữ liệu cũ, dùng giá trị mặc định và lưu vào DB
+            await saveGoalToSQLite(database, today, steps, distance, calories, activeTime);
+          }
+        }
+      } catch (error) {
+        console.error('initDB failed:', error);
+      }
+    };
 
-  const decreaseKilomet = () => {
-    setKilomet((prev) => (prev - 1 > 0 ? prev - 1 : 0));
-  };
+    initDB();
+  }, []);
 
-  const decreaseMunites = () => {
-    setMinutes((prev) => (prev - 30 > 0 ? prev - 30 : 0));
-  };
+  useEffect(() => {
+    if (db) {
+      saveGoal(steps, distance, calories, activeTime); // Tự động lưu khi các giá trị thay đổi
+    }
+  }, [steps, distance, calories, activeTime]);
+
+  const increaseSteps = () => setSteps((prev) => Math.max(prev + 500, 0));
+  const decreaseSteps = () => setSteps((prev) => Math.max(prev - 500, 0));
+
+  const increaseCalo = () => setCalories((prev) => Math.max(prev + 100, 0));
+  const decreaseCalo = () => setCalories((prev) => Math.max(prev - 100, 0));
+
+  const increaseKilomet = () => setDistance((prev) => Math.max(prev + 1, 0));
+  const decreaseKilomet = () => setDistance((prev) => Math.max(prev - 1, 0));
+
+  const increaseMinutes = () => setActiveTime((prev) => Math.max(prev + 30, 0));
+  const decreaseMinutes = () => setActiveTime((prev) => Math.max(prev - 30, 0));
+
 
   const onSelectSwitch = (value) => {
     setGoalTab(value)
@@ -64,7 +109,7 @@ function Goal() {
         barStyle="dark-content"
       />
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <View >
+        <View style={{ alignItems: 'center' }} >
           <SwitchGoal
             selectionMode={1}
             option1="Mục tiêu"
@@ -124,7 +169,7 @@ function Goal() {
                       </TouchableOpacity>
 
                       <View style={styles.stepDisplay}>
-                        <Text style={styles.stepText}>{calo.toLocaleString("vi-VN")}</Text>
+                        <Text style={styles.stepText}>{calories.toLocaleString("vi-VN")}</Text>
                         <Text style={styles.stepUnit}>Kcal</Text>
                       </View>
 
@@ -139,7 +184,7 @@ function Goal() {
                       </TouchableOpacity>
 
                       <View style={styles.stepDisplay}>
-                        <Text style={styles.stepText}>{kilomet.toLocaleString("vi-VN")}</Text>
+                        <Text style={styles.stepText}>{distance.toLocaleString("vi-VN")}</Text>
                         <Text style={styles.stepUnit}>Km</Text>
                       </View>
 
@@ -149,16 +194,16 @@ function Goal() {
                     </View>
 
                     <View style={styles.stepCounter}>
-                      <TouchableOpacity onPress={decreaseMunites} style={styles.iconButton}>
+                      <TouchableOpacity onPress={decreaseMinutes} style={styles.iconButton}>
                         <Icon name="remove" size={20} color="#000" />
                       </TouchableOpacity>
 
                       <View style={styles.stepDisplay}>
-                        <Text style={styles.stepText}>{minutes.toLocaleString("vi-VN")}</Text>
+                        <Text style={styles.stepText}>{activeTime.toLocaleString("vi-VN")}</Text>
                         <Text style={styles.stepUnit}>Phút</Text>
                       </View>
 
-                      <TouchableOpacity onPress={increaseMunites} style={styles.iconButton}>
+                      <TouchableOpacity onPress={increaseMinutes} style={styles.iconButton}>
                         <Icon name="add" size={20} color="#000" />
                       </TouchableOpacity>
                     </View>
@@ -180,7 +225,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    alignItems: 'center',
   },
   // safeArea: {
   //   paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
@@ -232,13 +276,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   notificationText: {
-    //marginLeft: 8,
-    color: "#000000",
     fontSize: 18,
-    marginRight: 25
+    marginLeft: 8,
+    color: "#000",
+    flex: 1,
   },
   arrowIcon: {
-    marginLeft: 200,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   moreGoalsContainer: {
     marginTop: 20,

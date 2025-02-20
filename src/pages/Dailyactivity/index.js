@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, Platform, StatusBar, PermissionsAndroid } from 'react-native';
 import { Pedometer } from 'expo-sensors';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,8 +9,9 @@ import CustomSwitch from '../../component/CustomSwitch';
 import Weeklyactivity from '../Weeklyactivity';
 import Monthlyactivity from '../Monthlyactivity';
 import Linechart from '../../component/Linechart';
-import { openDB, createTable, saveStepsToSQLite, loadStepsFromSQLite, getActivityByDay } from '../../../Database/database'
-
+import { openDB } from '../../../Database/database';
+import { createTable, saveStepsToSQLite, loadStepsFromSQLite } from "../../../Database/DailyDatabase"
+import { loadGoalFromSQLite, createGoalsTable } from '../../../Database/GoalsDatabase'
 
 // Hàm lấy tên ngày hiện tại
 const getDayName = () => {
@@ -26,6 +28,10 @@ const Dailyactivity = () => {
   const [subscription, setSubscription] = useState(null);
   const [lastDay, setLastDay] = useState(getDayName());
   const [lastSavedTime, setLastSavedTime] = useState(0);
+  const [goalSteps, setGoalSteps] = useState(6000);
+  const [goalCalories, setGoalCalories] = useState(200);
+  const [goalDistance, setGoalDistance] = useState(3);
+  const [goalActiveTime, setGoalActiveTime] = useState(30);
   const [db, setDb] = useState(null);
 
   // Lưu số bước vào SQLite
@@ -126,13 +132,36 @@ const Dailyactivity = () => {
     }
   };
 
+  const fetchGoal = async (db) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const goal = await loadGoalFromSQLite(db, today);
+
+      if (goal) {
+        setGoalSteps(goal.steps ?? 0);
+        setGoalCalories(goal.calories ?? 0);
+        setGoalDistance(goal.distance ?? 0);
+        setGoalActiveTime(goal.activeTime ?? 0);
+
+        console.log('Mục tiêu tải từ SQLite:', goal);
+      } else {
+        console.log('Không có mục tiêu cho hôm nay.');
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải mục tiêu:', error);
+    }
+  };
+
+
   useEffect(() => {
     const initializeDB = async () => {
       try {
         const database = await openDB();
         setDb(database);
         await createTable(database);
+        await createGoalsTable(database)
         loadStepsFromSQLite(database, setStepCount);
+        fetchGoal(database);
         subscribe(database);
       } catch (error) {
         console.error('Database initialization failed:', error);
@@ -155,6 +184,23 @@ const Dailyactivity = () => {
   useEffect(() => {
     console.log('Step count updated for UI:', stepCount);
   }, [stepCount]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (db) {
+        fetchGoal(db); // Gọi lại hàm lấy mục tiêu khi màn hình focus
+        loadStepsFromSQLite(db, setStepCount);
+      }
+    }, [db])
+  );
+
+  //Cập nhật vòng tròn tiến trình
+  useEffect(() => {
+    if (goalSteps > 0 && stepCount >= 0) {
+      console.log(`Cập nhật tiến trình: ${stepCount}/${goalSteps}`);
+    }
+  }, [goalSteps, stepCount]);
+
 
   const onSelectSwitch = (value) => {
     setDateTab(value);
@@ -182,9 +228,9 @@ const Dailyactivity = () => {
             <View>
               <View style={styles.circular}>
                 <CircularProgress
-                  key={stepCount}
+                  key={`${stepCount}-${goalSteps}`}
                   value={stepCount}
-                  maxValue={6000}
+                  maxValue={goalSteps > 0 ? goalSteps : 1}
                   radius={160}
                   textColor={'#000000'}
                   activeStrokeColor={'#00BFFF'}
@@ -199,7 +245,7 @@ const Dailyactivity = () => {
                     fontSize: 18,
                   }}
                 />
-                <Text style={styles.goalText}>Mục tiêu 6.000</Text>
+                <Text style={styles.goalText}>Mục tiêu {goalSteps}</Text>
               </View>
 
               <View style={styles.textdesign}>
@@ -209,7 +255,7 @@ const Dailyactivity = () => {
                     {distance} m
                   </Text>
                   <Bar
-                    progress={distance / 2000}
+                    progress={distance / goalDistance}
                     width={90}
                     height={3}
                     color="#00BFFF"
@@ -224,7 +270,7 @@ const Dailyactivity = () => {
                     {calories} kcal
                   </Text>
                   <Bar
-                    progress={calories / 2000}
+                    progress={calories / goalCalories}
                     width={90}
                     height={3}
                     color="#00BFFF"
@@ -239,7 +285,7 @@ const Dailyactivity = () => {
                     {activeTime} phút
                   </Text>
                   <Bar
-                    progress={activeTime / 2000}
+                    progress={activeTime / goalActiveTime}
                     width={90}
                     height={3}
                     color="#00BFFF"

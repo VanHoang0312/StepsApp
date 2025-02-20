@@ -46,15 +46,15 @@ function Monthlyactivity() {
         {/* Details */}
         <View style={styles.details}>
           <View style={styles.detailItem}>
-            <Text style={styles.detailValue}>67 kcal</Text>
-            <Text style={styles.detailLabel}>CALO</Text>
+            <Text style={[styles.detailValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>67 kcal</Text>
+            <Text style={styles.detailLabel}>CALORIES</Text>
           </View>
           <View style={styles.detailItem}>
-            <Text style={styles.detailValue}>1,2 km</Text>
+            <Text style={[styles.detailValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>1,2 km</Text>
             <Text style={styles.detailLabel}>KHOẢNG CÁCH</Text>
           </View>
           <View style={styles.detailItem}>
-            <Text style={styles.detailValue}>18 phút</Text>
+            <Text style={[styles.detailValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>18 phút</Text>
             <Text style={styles.detailLabel}>THỜI GIAN HOẠT ĐỘNG</Text>
           </View>
         </View>
@@ -112,7 +112,9 @@ const styles = StyleSheet.create({
   details: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 10 },
   detailItem: { alignItems: 'center' },
   detailValue: { fontSize: 18, fontWeight: 'bold' },
-  detailLabel: { fontSize: 12, color: '#555' },
+  detailLabel: {     fontSize: 12,
+    color: "#808080",
+    fontWeight: "bold", },
   chart: { marginVertical: 20 },
 
 })

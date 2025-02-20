@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
-import { openDB } from '../../Database/database'; 
+import { openDB } from '../../Database/database';
 
 
 const Linechart = () => {
@@ -28,22 +28,25 @@ const Linechart = () => {
           `SELECT day, steps FROM activity WHERE day IN (?, ?, ?, ?, ?, ?, ?) ORDER BY day ASC`,
           days,
           (_, results) => {
-            const data = new Array(7).fill(0); // Mặc định 0 bước
+            const dataMap = new Map(days.map(d => [d, 0])); // Map mặc định 0 bước
+
+            // Điền dữ liệu từ DB vào Map
             for (let i = 0; i < results.rows.length; i++) {
               const row = results.rows.item(i);
-              const index = days.indexOf(row.day);
-              if (index !== -1) {
-                data[index] = row.steps; // Gán số bước tương ứng
-              }
+              dataMap.set(row.day, row.steps);
             }
 
-            // Xoay dữ liệu theo ngày hiện tại
-            const todayIndex = today.getDay();
-            const rotatedData = [...data.slice(todayIndex + 1), ...data.slice(0, todayIndex + 1)];
-            const rotatedDays = [...defaultWeekDays.slice(todayIndex + 1), ...defaultWeekDays.slice(0, todayIndex + 1)];
+            // Chuyển Map về mảng dữ liệu đúng thứ tự
+            const sortedData = Array.from(dataMap.values());
 
-            setWeeklySteps(rotatedData);
-            setRotatedLabels(rotatedDays);
+            // Gán nhãn ngày thực tế (để khớp với dữ liệu)
+            const sortedLabels = days.map(date => {
+              const d = new Date(date);
+              return defaultWeekDays[d.getDay()]; // Lấy tên thứ tương ứng
+            });
+        
+            setWeeklySteps(sortedData);
+            setRotatedLabels(sortedLabels);
           },
           (tx, error) => console.error('Error fetching steps data:', error)
         );
@@ -53,12 +56,13 @@ const Linechart = () => {
     }
   };
 
+
   useEffect(() => {
     loadWeeklyStepsFromSQLite();
   }, []);
 
   return (
-    <View style={{ marginTop: 30 }}>
+    <View style={{ marginTop: 40 }}>
       <LineChart
         data={{
           labels: rotatedLabels,
@@ -70,9 +74,11 @@ const Linechart = () => {
             },
           ],
         }}
-        width={Dimensions.get("window").width - 20}
+        width={Dimensions.get("window").width}
         height={220}
         yAxisInterval={1}
+        yAxisSuffix=" bước"
+        withShadow={true}
         chartConfig={{
           backgroundColor: "#FFFFFF",
           backgroundGradientFrom: "#FFFFFF",
@@ -85,7 +91,7 @@ const Linechart = () => {
         }}
         bezier
         style={{ borderRadius: 16 }}
-        withHorizontalLabels={false}
+        withHorizontalLabels={true}
         withDots={true}
       />
     </View>

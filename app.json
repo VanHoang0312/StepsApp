@@ -14,7 +14,10 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ffffff",
+        "permissions": [
+          "ACTIVITY_RECOGNITION"
+        ]
       },
       "package": "com.levanhoang312.StepsApp"
     },
@@ -24,6 +27,17 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "minSdkVersion": 29
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",

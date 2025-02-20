@@ -1,21 +1,35 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StatusBar, Text, StyleSheet, View, Dimensions, Modal, TouchableOpacity, FlatList, ScrollView } from "react-native";
-import { LineChart } from "react-native-chart-kit";
+//import { LineChart } from "react-native-chart-kit";
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { openDB } from "../../../Database/database";
+import { createTable, loadStepsFromSQLite } from "../../../Database/DailyDatabase";
+import StepComparisonChart from '../../component/ChartResult'
 
 function Result() {
   const [modalVisible, setModalVisible] = useState(false);
+  const [data, setData] = useState();
+  const [db, setDb] = useState();
 
-  const chartData = {
-    labels: ["0:00", "09:08", "24:00"], // Các mốc thời gian
-    datasets: [
-      {
-        data: [0, 56, 145], // Dữ liệu các bước
-        color: () => "#FF4D4F", // Màu đường
-        strokeWidth: 2,
-      },
-    ],
-  };
+  const today = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    const initDatabase = async () => {
+      try {
+        const Database = await openDB()
+        setDb(Database)
+        await createTable(Database)
+        const loadData = await loadStepsFromSQLite(Database, today)
+        if (loadData) {
+          setData(loadData.steps)
+        }
+
+      } catch (error) {
+        console.error("InitDb false:", error)
+      }
+    };
+    initDatabase();
+  }, [])
 
   const options = [
     { label: "Bước" },
@@ -43,7 +57,7 @@ function Result() {
               <View style={styles.row}>
                 <View>
                   <Text style={styles.label}>HÔM NAY</Text>
-                  <Text style={styles.todaySteps}>56</Text>
+                  <Text style={styles.todaySteps}>{data}</Text>
                 </View>
                 <View>
                   <Text style={styles.label}>THƯỜNG</Text>
@@ -51,26 +65,7 @@ function Result() {
                 </View>
               </View>
 
-              <LineChart
-                data={chartData}
-                width={Dimensions.get("window").width - 90} // Chiều rộng biểu đồ
-                height={200}
-                yAxisSuffix=" bước"
-                chartConfig={{
-                  backgroundGradientFrom: "#fff",
-                  backgroundGradientTo: "#fff",
-                  decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                  propsForDots: {
-                    r: "4",
-                    strokeWidth: "2",
-                    stroke: "#FF4D4F",
-                  },
-                }}
-                bezier
-                style={styles.chart}
-              />
+              <StepComparisonChart />
 
               <TouchableOpacity
                 style={styles.button}
