@@ -36,13 +36,14 @@ const StepComparisonChart = ({ average }) => {
   }, []);
 
   const averageSteps = [0, average, 0]; // Số bước trung bình thường ngày
+  const lineColor = dataSteps[1] >= average ? "rgba(75, 192, 192, 1)" : "rgba(255, 99, 132, 1)"; // Xanh nếu đạt, đỏ nếu không
 
   const data = {
     labels,
     datasets: [
       {
         data: dataSteps, // Hôm nay
-        color: (opacity = 1) => `rgba(255, 99, 132, ${opacity})`, // Đỏ
+        color: (opacity = 1) => lineColor,
         strokeWidth: 3,
       },
       {
@@ -62,7 +63,7 @@ const StepComparisonChart = ({ average }) => {
         height={240}
         bezier
         withDots
-        withShadow={false}
+        withShadow={true}
         withInnerLines={false}
         withOuterLines={true}
         chartConfig={{

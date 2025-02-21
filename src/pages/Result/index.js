@@ -69,7 +69,15 @@ function Result() {
               <View style={styles.row}>
                 <View>
                   <Text style={styles.label}>HÔM NAY</Text>
-                  <Text style={styles.todaySteps}>{data}</Text>
+                  <Text
+                    style={[
+                      styles.todaySteps,
+                      { color: data >= average ? "#4CAF50" : "#FF4D4F" },
+                    ]}
+                  >
+                    {data}
+                  </Text>
+
                 </View>
                 <View>
                   <Text style={styles.label}>THƯỜNG</Text>
@@ -80,7 +88,9 @@ function Result() {
               <StepComparisonChart average={average} />
 
               <TouchableOpacity
-                style={styles.button}
+                style={[styles.button,
+                { color: data >= average ? "#0000FF" : "#FF4D4F" }
+                ]}
                 onPress={() => setModalVisible(true)}
               >
                 <Text style={styles.buttonText}>Bước</Text>
