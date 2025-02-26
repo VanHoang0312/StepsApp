@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, SafeAreaView, ScrollView, StyleSheet, Dimensions, Button } from "react-native";
+import { View, Text, SafeAreaView, ScrollView, StyleSheet, Dimensions, TouchableOpacity } from "react-native";
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { openDB } from "../../../Database/database";
 import { useNavigation } from '@react-navigation/native';
@@ -7,7 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 
 function WeeklyActivity() {
   const [stepsData, setStepsData] = useState([0, 0, 0, 0, 0, 0, 0]);
-  const [weekRange, setWeekRange] = useState(""); 
+  const [weekRange, setWeekRange] = useState("");
   const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
   const navigation = useNavigation();
 
@@ -78,7 +78,9 @@ function WeeklyActivity() {
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <Text style={styles.weekLabel}>{weekRange}</Text>
-            <Button title="Lịch sử tuần" onPress={() => navigation.navigate('WeeklyHistory')}/>
+            <TouchableOpacity style={styles.historyButton} onPress={() => navigation.navigate('WeeklyHistory')}>
+              <Text style={styles.historyButtonText}>Lịch sử tuần</Text>
+            </TouchableOpacity>
           </View>
           <Text style={styles.stepCount}>{stepsData.reduce((a, b) => a + b, 0)}</Text>
         </View>
@@ -157,7 +159,6 @@ function WeeklyActivity() {
           withHorizontalLabels={true}
           withDots={true}
         />
-        {/* <MonthlyStepsChart/> */}
       </ScrollView>
     </SafeAreaView>
   );
@@ -197,9 +198,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 15
   },
-  infoBox: {
-    //alignItems: 'center',
-  },
   infoValue: {
     fontSize: 12,
     fontWeight: 'bold',
@@ -226,7 +224,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     marginBottom: 5,
-    paddingRight: 10
+    paddingRight: 15
+  },
+  historyButton: {
+    backgroundColor: '#6495ED',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    elevation: 3, 
+    shadowColor: '#000', // Đổ bóng (iOS)
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  historyButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

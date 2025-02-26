@@ -5,79 +5,89 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { openDB } from "../../../Database/database";
 
 function WeeklyHistory() {
-  const [stepsWeekly, setStepWeekly] = useState();
-  const [week, setWeek] = useState("");
-
+  const [weeklyData, setWeeklyData] = useState([]);
 
   useEffect(() => {
-    const stepData = async () => {
+    const fetchWeeklyData = async () => {
       const db = await openDB();
       const today = new Date();
-      // Tính toán ngày đầu tuần (Thứ Hai) và ngày cuối tuần (Chủ Nhật)
-      const firstDayOfWeek = new Date(today);
-      firstDayOfWeek.setDate(today.getDate() - today.getDay() + 1); // Tính ngày Thứ Hai
+      const weeks = [];
 
-      const lastDayOfWeek = new Date(today);
-      lastDayOfWeek.setDate(today.getDate() - today.getDay() + 7); // Tính ngày Chủ Nhật
+      for (let i = 0; i < 7; i++) {
+        const lastDayOfWeek = new Date(today);
+        lastDayOfWeek.setDate(today.getDate() - today.getDay() + 7 - (i * 7));
 
-      // Định dạng ngày
-      const formatDate = (date, includeYear = true) => {
-        const day = date.getDate();
-        const month = date.toLocaleString('default', { month: 'short' });
-        const year = date.getFullYear();
-        if (includeYear) {
-          return `${day} ${month}, ${year}`;
-        } else {
-          return `${day}`;
-        }
-      };
-      setWeek(`${formatDate(firstDayOfWeek, false)} - ${formatDate(lastDayOfWeek)}`);
+        const firstDayOfWeek = new Date(lastDayOfWeek);
+        firstDayOfWeek.setDate(lastDayOfWeek.getDate() - 6);
 
-      // Lấy các ngày trong tuần
-      const daysOfWeek = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date(today);
-        date.setDate(today.getDate() - today.getDay() + i + 1); // Lấy ngày từ thứ 2 - CN
-        return date.toISOString().split("T")[0];
-      });
+        const formatDate = (date) => {
+          const day = date.getDate().toString().padStart(2, '0');
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const year = date.getFullYear();
+          return `${year}-${month}-${day}`;
+        };
 
+        const displayDate = `${firstDayOfWeek.getDate()}/${firstDayOfWeek.getMonth() + 1} - ${lastDayOfWeek.getDate()}/${lastDayOfWeek.getMonth() + 1}/${lastDayOfWeek.getFullYear()}`;
 
+        const startDate = formatDate(firstDayOfWeek);
+        const endDate = formatDate(lastDayOfWeek);
+
+        const result = await db.executeSql(
+          `SELECT 
+            COALESCE(SUM(steps), 0) AS totalSteps,
+            COALESCE(SUM(calories), 0) AS totalCalories,
+            COALESCE(SUM(distance), 0) AS totalDistance,
+            COALESCE(SUM(activeTime), 0) AS totalActiveTime
+          FROM activity
+          WHERE day BETWEEN ? AND ?`, [startDate, endDate]
+        );
+
+        const data = result[0].rows.item(0);
+        weeks.unshift({
+          week: displayDate,
+          steps: data.totalSteps,
+          calories: data.totalCalories,
+          distance: data.totalDistance.toFixed(2),
+          activeTime: data.totalActiveTime
+        });
+      }
+
+      setWeeklyData(weeks.reverse());
     };
 
-    stepData()
-  }, [])
+    fetchWeeklyData();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-
-        <View style={styles.stepCounter}>
-          <View style={styles.stepDisplay}>
-            <View style={styles.dateContainer}>
-              <Text style={styles.dateText}>{week}</Text>
-            </View>
-
-            <View style={styles.stepsContainer}>
-              <Text style={styles.stepsText}>20000</Text>
-              <FontAwesome5 name="walking" size={24} color="#00000" style={styles.stepIcon} />
-            </View>
-            <View style={styles.activityWeekly}>
-              <View style={styles.activityItem}>
-                <Text style={styles.activityTitle}>CALORIES</Text>
-                <Text style={styles.activityValue}>500 kcal</Text>
+        {weeklyData.map((weekData, index) => (
+          <View key={index} style={styles.stepCounter}>
+            <View style={styles.stepDisplay}>
+              <View style={styles.dateContainer}>
+                <Text style={styles.dateText}>{weekData.week}</Text>
               </View>
-              <View style={styles.activityItem}>
-                <Text style={styles.activityTitle}>KHOẢNG CÁCH</Text>
-                <Text style={styles.activityValue}>8.2 km</Text>
+              <View style={styles.stepsContainer}>
+                <Text style={styles.stepsText}>{weekData.steps}</Text>
+                <FontAwesome5 name="walking" size={24} color="#000" style={styles.stepIcon} />
               </View>
-              <View style={styles.activityItem}>
-                <Text style={styles.activityTitle}>THỜI GIAN{'\n'}HOẠT ĐỘNG</Text>
-                <Text style={styles.activityValue}>60 phút</Text>
+              <View style={styles.activityWeekly}>
+                <View style={styles.activityItem}>
+                  <Text style={styles.activityTitle}>CALORIES</Text>
+                  <Text style={styles.activityValue}>{weekData.calories} kcal</Text>
+                </View>
+                <View style={styles.activityItem}>
+                  <Text style={styles.activityTitle}>KHOẢNG CÁCH</Text>
+                  <Text style={styles.activityValue}>{weekData.distance} m</Text>
+                </View>
+                <View style={styles.activityItem}>
+                  <Text style={styles.activityTitle}>THỜI GIAN{'\n'}HOẠT ĐỘNG</Text>
+                  <Text style={styles.activityValue}>{weekData.activeTime} phút</Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
-
-
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -98,7 +108,8 @@ const styles = StyleSheet.create({
     elevation: 5,
     padding: 16,
     width: "100%",
-    marginTop: 5,
+    marginTop: 10,
+    marginBottom: 20
   },
   stepDisplay: {
     width: '100%',
