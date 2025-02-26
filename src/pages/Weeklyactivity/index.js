@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, SafeAreaView, ScrollView, StyleSheet, Dimensions } from "react-native";
+import { View, Text, SafeAreaView, ScrollView, StyleSheet, Dimensions, Button } from "react-native";
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { openDB } from "../../../Database/database";
-import MonthlyStepsChart from "../../component/Monthchart";
+import { useNavigation } from '@react-navigation/native';
+
 
 function WeeklyActivity() {
   const [stepsData, setStepsData] = useState([0, 0, 0, 0, 0, 0, 0]);
-  const [weekRange, setWeekRange] = useState(""); // State để lưu ngày đầu và ngày cuối tuần
+  const [weekRange, setWeekRange] = useState(""); 
   const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const navigation = useNavigation();
 
   useEffect(() => {
     const fetchStepsData = async () => {
@@ -68,23 +70,19 @@ function WeeklyActivity() {
     fetchStepsData();
   }, []);
 
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.weekLabel}>{weekRange}</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.weekLabel}>{weekRange}</Text>
+            <Button title="Lịch sử tuần" onPress={() => navigation.navigate('WeeklyHistory')}/>
+          </View>
           <Text style={styles.stepCount}>{stepsData.reduce((a, b) => a + b, 0)}</Text>
         </View>
 
-        {/* Thanh số liệu */}
-        <View horizontal style={styles.dayBar}>
-          {labels.map((label, index) => (
-            <View key={index} style={styles.dayItem}>
-              <Text style={styles.dayLabel}>{label}</Text>
-            </View>
-          ))}
-        </View>
         <View style={styles.chartContainer}>
           <BarChart
             data={{
@@ -187,20 +185,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold'
   },
-  dayBar: {
-    flexDirection: 'row',
-    marginBottom: 15,
-    backgroundColor: '#E0E0E0',
-    padding: 5
-  },
-  dayItem: {
-    alignItems: 'center',
-    marginHorizontal: 18,
-  },
-  dayLabel: {
-    fontSize: 12,
-    color: '#555'
-  },
   stepCountDay: {
     fontSize: 14,
     fontWeight: 'bold'
@@ -235,6 +219,14 @@ const styles = StyleSheet.create({
   },
   chart: {
     marginVertical: 2,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 5,
+    paddingRight: 10
   },
 });
 

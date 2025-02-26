@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, Platform, StatusBar, PermissionsAndroid } from 'react-native';
 import { Pedometer } from 'expo-sensors';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CircularProgress from 'react-native-circular-progress-indicator';
 import { Bar } from 'react-native-progress';
@@ -246,6 +247,7 @@ const Dailyactivity = () => {
                   }}
                 />
                 <Text style={styles.goalText}>Mục tiêu {goalSteps}</Text>
+                <FontAwesome5 name="walking" size={24} color="#00BFFF" style={styles.stepIcon} />
               </View>
 
               <View style={styles.textdesign}>
@@ -342,6 +344,11 @@ const styles = StyleSheet.create({
     color: '#A9A9A9',
     textAlign: 'center',
     fontWeight: 'bold',
+  },
+  stepIcon: {
+    position: 'absolute',
+    top: '19%',
+    fontSize: 35,
   },
 });
 

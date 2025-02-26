@@ -8,6 +8,7 @@ import Dailyactivity from '../../src/pages/Dailyactivity';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Setting from '../../src/pages/Setting';
 import Result from '../../src/pages/Result';
+import DailyStack from './DailyStack';
 
 
 const Tab = createBottomTabNavigator();
@@ -39,7 +40,7 @@ function TabLayout() {
         )
       }} />
 
-      <Tab.Screen name='Bước' component={Dailyactivity} options={{
+      <Tab.Screen name='Bước' component={DailyStack} options={{
         headerShown: false,
         tabBarIcon: ({ color, focused }) => (
           <View style={[styles.floatingIcon, focused && styles.focusedIcon]}>
