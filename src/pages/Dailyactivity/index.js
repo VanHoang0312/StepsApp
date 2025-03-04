@@ -13,6 +13,7 @@ import Linechart from '../../component/Linechart';
 import { openDB } from '../../../Database/database';
 import { createTable, saveStepsToSQLite, loadStepsFromSQLite } from "../../../Database/DailyDatabase"
 import { loadGoalFromSQLite, createGoalsTable } from '../../../Database/GoalsDatabase'
+import { loadBodyFromSQLite } from '../../../Database/BodyDatabase';
 
 // Hàm lấy tên ngày hiện tại
 const getDayName = () => {
@@ -36,10 +37,42 @@ const Dailyactivity = () => {
   const [db, setDb] = useState(null);
 
   // Lưu số bước vào SQLite
-  const saveSteps = (updatedSteps, database) => {
-    const updatedDistance = (updatedSteps / 1300).toFixed(2);
-    const updatedCalories = (updatedDistance * 60).toFixed(2);
-    const updatedActiveTime = Math.floor(updatedSteps / 80);
+  // const saveSteps = (updatedSteps, database) => {
+  //   const updatedDistance = (updatedSteps / 1300).toFixed(2);
+  //   const updatedCalories = (updatedDistance * 60).toFixed(2);
+  //   const updatedActiveTime = Math.floor(updatedSteps / 80);
+
+  //   setDistance(updatedDistance);
+  //   setCalories(updatedCalories);
+  //   setActiveTime(updatedActiveTime);
+
+  //   const today = getDayName();
+  //   if (today !== lastDay) {
+  //     setStepCount(0);
+  //     setActiveTime(0);
+  //     setDistance(0);
+  //     setCalories(0);
+  //     setLastDay(today);
+  //   } else {
+  //     const now = Date.now();
+  //     if (now - lastSavedTime > 3000) {  // Chỉ lưu sau mỗi 3 giây
+  //       setLastSavedTime(now);
+  //       saveStepsToSQLite(database, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
+  //     }
+  //   }
+  // };
+
+  const saveSteps = (updatedSteps, database, bodyData) => {
+    if (!bodyData) {
+      console.error("Body data is missing!");
+      return;
+    }
+    const { stepLength, weight } = bodyData;
+
+    // Tính toán lại giá trị chính xác
+    const updatedDistance = ((updatedSteps * stepLength) / 100000).toFixed(2); // km
+    const updatedCalories = (updatedDistance * weight * 0.75).toFixed(2); // kcal
+    const updatedActiveTime = Math.floor(updatedSteps / 100); // phút
 
     setDistance(updatedDistance);
     setCalories(updatedCalories);
@@ -54,7 +87,7 @@ const Dailyactivity = () => {
       setLastDay(today);
     } else {
       const now = Date.now();
-      if (now - lastSavedTime > 3000) {  // Chỉ lưu sau mỗi 3 giây
+      if (now - lastSavedTime > 3000) { // Chỉ lưu sau mỗi 3 giây
         setLastSavedTime(now);
         saveStepsToSQLite(database, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
       }
@@ -95,7 +128,6 @@ const Dailyactivity = () => {
       if (result.steps < lastSteps) {
         console.warn(" Số bước cảm biến nhỏ hơn lastSteps. Đồng bộ lại!");
         lastSteps = result.steps;
-        //setStepCount(lastSteps);
         return;
       }
 
@@ -105,8 +137,15 @@ const Dailyactivity = () => {
           const updatedSteps = prev + stepsToAdd;
           console.log(` Đếm thêm: ${stepsToAdd}, Tổng bước: ${updatedSteps}`);
 
+          loadBodyFromSQLite(database, getDayName()).then((bodyData) => {
+            if (bodyData) {
+              saveSteps(updatedSteps, database, bodyData);
+            } else {
+              console.error("Không thể tải dữ liệu body!");
+            }
+          });
           // Lưu ngay vào SQLite sau khi UI cập nhật
-          saveSteps(updatedSteps, database);
+          //saveSteps(updatedSteps, database);
           return updatedSteps;
         });
       }

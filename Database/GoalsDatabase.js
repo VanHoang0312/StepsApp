@@ -59,7 +59,7 @@ export const loadGoalFromSQLite = (db, day) => {
         (_, { rows }) => {
           if (rows.length > 0) {
             const goal = rows.item(0);
-            console.log(` Goal loaded for ${day}:`, goal);
+            console.log(`Goal loaded for ${day}:`, goal);
             resolve(goal);
           } else {
             console.warn(` No goal found for ${day}`);

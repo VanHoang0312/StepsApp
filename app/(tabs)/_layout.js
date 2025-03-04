@@ -1,18 +1,15 @@
 import React from 'react';
-import { Button, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
-import GoalStack from '../../src/pages/Goal/GoalStack'
+import GoalStack from '../(tabs)/GoalStack'
 import Workout from '../../src/pages/Workout';
-import Dailyactivity from '../../src/pages/Dailyactivity';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import Setting from '../../src/pages/Setting';
 import Result from '../../src/pages/Result';
 import DailyStack from './DailyStack';
+import SettingStack from './SettingStack';
 
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator()
 
 function TabLayout() {
   return (
@@ -27,7 +24,8 @@ function TabLayout() {
         },
       }}
     >
-      <Tab.Screen name='Cài đặt' component={Setting} options={{
+      <Tab.Screen name='Cài đặt' component={SettingStack} options={{
+        headerShown: false,
         tabBarIcon: ({ color, size }) => (
           <Icon name='settings' size={size} color={color} />
         )
@@ -56,6 +54,7 @@ function TabLayout() {
       }} />
 
       <Tab.Screen name='Kết quả' component={Result} options={{
+        headerShown: false,
         tabBarIcon: ({ color, size }) => (
           <Icon name='assessment' size={size} color={color} />
         )

@@ -59,7 +59,7 @@ const StepComparisonChart = ({ average }) => {
     <View style={{ alignItems: "center", marginRight: 20 }}>
       <LineChart
         data={data}
-        width={screenWidth - 40}
+        width={screenWidth - 60}
         height={240}
         bezier
         withDots

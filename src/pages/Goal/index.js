@@ -6,7 +6,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { openDB } from '../../../Database/database';
-import {saveGoalToSQLite, loadGoalFromSQLite, createGoalsTable, loadLatestGoalFromSQLite} from '../../../Database/GoalsDatabase';
+import { saveGoalToSQLite, loadGoalFromSQLite, createGoalsTable, loadLatestGoalFromSQLite } from '../../../Database/GoalsDatabase';
 
 function Goal() {
   const [goalTab, setGoalTab] = useState(1);
@@ -34,7 +34,7 @@ function Goal() {
         return;
       }
       await saveGoalToSQLite(database, today, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
-    
+
     } catch (error) {
       console.error('Error saving goal:', error);
     }

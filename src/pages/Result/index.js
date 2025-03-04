@@ -4,8 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { openDB } from "../../../Database/database";
 import { createTable, loadStepsFromSQLite, getAllActivityData } from "../../../Database/DailyDatabase";
 import StepComparisonChart from '../../component/ChartResult'
+import SwitchResult from "../../component/SwitchResult";
+import Gift from "./gift";
 
 function Result() {
+  const [giftTab, setGiftTab] = useState(1)
   const [modalVisible, setModalVisible] = useState(false);
   const [data, setData] = useState();
   const [alldata, setAlldata] = useState();
@@ -50,6 +53,10 @@ function Result() {
     { label: "Thời gian" },
   ];
 
+  const onSelectSwitch = (value) => {
+    setGiftTab(value)
+  }
+
   return (
     <>
       <StatusBar
@@ -57,53 +64,65 @@ function Result() {
         backgroundColor="transparent"
         barStyle="dark-content"
       />
-      <SafeAreaView style={styles.container} edges={['right', 'bottom', 'left']}>
+      <SafeAreaView style={[styles.container]} edges={['top', 'left', 'right']}>
+        <View style={{ alignItems: 'center' }} >
+          <SwitchResult
+            selectionMode={1}
+            option1="Kết quả"
+            option2="Phần thưởng"
+            onSelectSwitch={onSelectSwitch}
+          />
+        </View>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false} style={{ padding: 20 }}>
           {/* Giao diện chính */}
-          <View style={{ marginTop: -5 }}>
-            <Text style={styles.title}>Thông tin chi tiết</Text>
-            <Text style={styles.subtitle}>Xu hướng. Tổng số. Hồ sơ.</Text>
+          {giftTab === 1 && (
+            <View style={{ marginTop: -5 }}>
+              <Text style={styles.title}>Thông tin chi tiết</Text>
+              <Text style={styles.subtitle}>Xu hướng. Tổng số. Hồ sơ.</Text>
 
-            <View style={styles.card}>
-              <View style={styles.row}>
-                <View>
-                  <Text style={styles.label}>HÔM NAY</Text>
-                  <Text
-                    style={[
-                      styles.todaySteps,
-                      { color: data >= average ? "#4CAF50" : "#FF4D4F" },
-                    ]}
-                  >
-                    {data}
-                  </Text>
+              <View style={styles.card}>
+                <View style={styles.row}>
+                  <View>
+                    <Text style={styles.label}>HÔM NAY</Text>
+                    <Text
+                      style={[
+                        styles.todaySteps,
+                        { color: data >= average ? "#4CAF50" : "#FF4D4F" },
+                      ]}
+                    >
+                      {data}
+                    </Text>
 
+                  </View>
+                  <View>
+                    <Text style={styles.label}>THƯỜNG</Text>
+                    <Text style={styles.averageSteps}>{average}</Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={styles.label}>THƯỜNG</Text>
-                  <Text style={styles.averageSteps}>{average}</Text>
-                </View>
+
+                <StepComparisonChart average={average} />
+
+                <TouchableOpacity
+                  style={[styles.button,
+                  { color: data >= average ? "#0000FF" : "#FF4D4F" }
+                  ]}
+                  onPress={() => setModalVisible(true)}
+                >
+                  <Text style={styles.buttonText}>Bước</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.note}>
+                  {data >= average
+                    ? "Chúc mừng, bạn đã đi nhiều bước hơn thường lệ."
+                    : "Cho đến giờ, bạn đã đi ít bước hơn thường lệ."}
+                </Text>
               </View>
 
-              <StepComparisonChart average={average} />
-
-              <TouchableOpacity
-                style={[styles.button,
-                { color: data >= average ? "#0000FF" : "#FF4D4F" }
-                ]}
-                onPress={() => setModalVisible(true)}
-              >
-                <Text style={styles.buttonText}>Bước</Text>
-              </TouchableOpacity>
-
-              <Text style={styles.note}>
-                {data >= average
-                  ? "Chúc mừng, bạn đã đi nhiều bước hơn thường lệ."
-                  : "Cho đến giờ, bạn đã đi ít bước hơn thường lệ."}
-              </Text>
             </View>
+          )}
 
-          </View>
+          {giftTab === 2 && <Gift />}
 
           {/* Modal */}
           <Modal
@@ -136,7 +155,7 @@ function Result() {
             </View>
           </Modal>
         </ScrollView>
-      </SafeAreaView>
+      </SafeAreaView >
     </>
 
   );
@@ -145,9 +164,7 @@ function Result() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
-    padding: 20,
-
+    backgroundColor: "#FFFFFF",
   },
   title: {
     fontSize: 26,

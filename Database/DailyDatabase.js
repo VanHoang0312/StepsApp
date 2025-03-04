@@ -16,41 +16,78 @@ const createTable = async (db) => {
 };
 
 // Lưu dữ liệu
+// const saveStepsToSQLite = async (db, steps, distance, calories, activeTime) => {
+//   try {
+//     const today = new Date().toISOString().split('T')[0];
+
+//     await db.transaction(async (tx) => {
+//       // Kiểm tra nếu đã có dữ liệu hôm nay
+//       tx.executeSql(
+//         'SELECT * FROM activity WHERE day = ?',
+//         [today],
+//         (tx, results) => {
+//           if (results.rows.length > 0) {
+//             // Đã có dữ liệu => Chỉ cập nhật thay vì thêm mới
+//             tx.executeSql(
+//               'UPDATE activity SET steps = ?, distance = ?, calories = ?, activeTime = ? WHERE day = ?',
+//               [steps, distance, calories, activeTime, today],
+//               () => console.log('Updated existing record'),
+//               (tx, error) => console.error('Error updating record:', error)
+//             );
+//           } else {
+//             // Chưa có dữ liệu => Thêm mới
+//             tx.executeSql(
+//               'INSERT INTO activity (day, steps, distance, calories, activeTime) VALUES (?, ?, ?, ?, ?)',
+//               [today, steps, distance, calories, activeTime],
+//               () => console.log('Inserted new record'),
+//               (tx, error) => console.error('Error inserting record:', error)
+//             );
+//           }
+//         },
+//         (tx, error) => console.error('Error checking existing record:', error)
+//       );
+//     });
+//   } catch (error) {
+//     console.error('Error saving data to SQLite:', error);
+//   }
+// };
 const saveStepsToSQLite = async (db, steps, distance, calories, activeTime) => {
   try {
     const today = new Date().toISOString().split('T')[0];
 
-    await db.transaction(async (tx) => {
+    db.transaction((tx) => {
       // Kiểm tra nếu đã có dữ liệu hôm nay
       tx.executeSql(
         'SELECT * FROM activity WHERE day = ?',
         [today],
-        (tx, results) => {
+        (_, results) => {
           if (results.rows.length > 0) {
-            // Đã có dữ liệu => Chỉ cập nhật thay vì thêm mới
+            // Nếu đã có dữ liệu thì cập nhật
             tx.executeSql(
               'UPDATE activity SET steps = ?, distance = ?, calories = ?, activeTime = ? WHERE day = ?',
               [steps, distance, calories, activeTime, today],
               () => console.log('Updated existing record'),
-              (tx, error) => console.error('Error updating record:', error)
+              (_, error) => console.error('Error updating record:', error)
             );
           } else {
-            // Chưa có dữ liệu => Thêm mới
+            // Nếu chưa có dữ liệu thì thêm mới, kể cả khi các giá trị là 0
             tx.executeSql(
               'INSERT INTO activity (day, steps, distance, calories, activeTime) VALUES (?, ?, ?, ?, ?)',
               [today, steps, distance, calories, activeTime],
-              () => console.log('Inserted new record'),
-              (tx, error) => console.error('Error inserting record:', error)
+              () => console.log('Inserted new record for', today),
+              (_, error) => console.error('Error inserting record:', error)
             );
           }
         },
-        (tx, error) => console.error('Error checking existing record:', error)
+        (_, error) => console.error('Error checking existing record:', error)
       );
     });
   } catch (error) {
     console.error('Error saving data to SQLite:', error);
   }
 };
+
+
 
 
 // Load dữ liệu

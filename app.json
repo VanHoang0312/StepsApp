@@ -14,12 +14,14 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff",
-        "permissions": [
-          "ACTIVITY_RECOGNITION"
-        ]
+        "backgroundColor": "#ffffff"
       },
-      "package": "com.levanhoang312.StepsApp"
+      "package": "com.levanhoang312.StepsApp",
+      "permissions": [
+        "ACTIVITY_RECOGNITION",
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -48,7 +50,9 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-task-manager",
+      "expo-background-fetch"
     ],
     "experiments": {
       "typedRoutes": true

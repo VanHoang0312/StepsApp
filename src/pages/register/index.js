@@ -3,11 +3,15 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { TextInput, Button, Text } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 
-const Login = () => {
+const Register = () => {
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('')
   const [password, setPassword] = useState('');
+  const [age, setAge] = useState('')
+  const [gender, setGender] = useState('')
+  const [weight, setWeight] = useState('')
+  const [height, setHeight] = useState('')
 
   return (
     <KeyboardAvoidingView
@@ -38,14 +42,44 @@ const Login = () => {
         secureTextEntry
         style={styles.input}
       />
+      <TextInput
+        mode="outlined"
+        label="Tuổi"
+        value={age}
+        onChangeText={setAge}
+        secureTextEntry
+        style={styles.input}
+      />
 
-      <Button mode="contained" style={styles.loginButton}>
-        Tiếp tục
-      </Button>
+      <TextInput
+        mode="outlined"
+        label="Giới tính"
+        value={gender}
+        onChangeText={setGender}
+        secureTextEntry
+        style={styles.input}
+      />
 
-      <Text style={styles.orText}>hoặc</Text>
+      <TextInput
+        mode="outlined"
+        label="Cân nặng"
+        value={weight}
+        onChangeText={setWeight}
+        secureTextEntry
+        style={styles.input}
+      />
 
-      <Button mode="contained">
+      <TextInput
+        mode="outlined"
+        label="Chiều cao"
+        value={height}
+        onChangeText={setHeight}
+        secureTextEntry
+        style={styles.input}
+      />
+
+
+      <Button mode="contained" style={styles.registerButton}>
         Đăng kí
       </Button>
     </KeyboardAvoidingView>
@@ -61,14 +95,11 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: 10,
   },
-  loginButton: {
+  registerButton: {
     marginTop: 10,
     backgroundColor: '#4A90E2',
   },
-  orText: {
-    alignSelf: 'center',
-    marginVertical: 10,
-  },
+
 });
 
-export default Login;
+export default Register;
