@@ -12,6 +12,7 @@ function Gift() {
         </View>
       </ScrollView>
     </SafeAreaView>
+
   )
 }
 

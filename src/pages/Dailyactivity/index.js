@@ -14,6 +14,8 @@ import { openDB } from '../../../Database/database';
 import { createTable, saveStepsToSQLite, loadStepsFromSQLite } from "../../../Database/DailyDatabase"
 import { loadGoalFromSQLite, createGoalsTable } from '../../../Database/GoalsDatabase'
 import { loadBodyFromSQLite } from '../../../Database/BodyDatabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCurrentData } from '../../services/userService';
 
 // Hàm lấy tên ngày hiện tại
 const getDayName = () => {
@@ -187,10 +189,53 @@ const Dailyactivity = () => {
       } else {
         console.log('Không có mục tiêu cho hôm nay.');
       }
+
     } catch (error) {
       console.error('Lỗi khi tải mục tiêu:', error);
     }
   };
+
+  const getToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token"); // Lấy token từ AsyncStorage
+      if (token) {
+        const response = await getCurrentData(token)
+        if (response) {
+          console.log("respoense:", response)
+        }
+        console.log("✅ Token lấy được:", token);
+      } else {
+        console.log("⚠️ Không tìm thấy token trong AsyncStorage");
+      }
+      return token; // Trả về token nếu cần dùng ở nơi khác
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy token:", error);
+      return null;
+    }
+  };
+
+  getToken();
+
+
+  // const getAllStorageData = async () => {
+  //   try {
+  //     const keys = await AsyncStorage.getAllKeys(); // Lấy tất cả các key
+  //     if (keys.length === 0) {
+  //       console.log("AsyncStorage is empty");
+  //       return;
+  //     }
+
+  //     const stores = await AsyncStorage.multiGet(keys); // Lấy tất cả các giá trị tương ứng
+  //     const storageData = stores.map(([key, value]) => ({ key, value })); // Chuyển thành mảng đối tượng
+
+  //     console.log("🔹 Tất cả dữ liệu trong AsyncStorage:", storageData);
+  //   } catch (error) {
+  //     console.error("Lỗi khi lấy dữ liệu từ AsyncStorage:", error);
+  //   }
+  // };
+
+  // // Gọi hàm để kiểm tra dữ liệu
+  // getAllStorageData();
 
 
   useEffect(() => {
@@ -207,7 +252,6 @@ const Dailyactivity = () => {
         console.error('Database initialization failed:', error);
       }
     };
-
     initializeDB();
     if (Platform.OS === 'android') {
       requestActivityPermission();

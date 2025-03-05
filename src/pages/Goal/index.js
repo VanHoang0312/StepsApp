@@ -24,6 +24,10 @@ function Goal() {
     navigation.navigate('Thông báo');
   };
 
+  const handleSpo2Press = () => {
+    navigation.navigate('SPO2')
+  }
+
   const today = new Date().toISOString().split('T')[0];
 
   const saveGoal = async (updatedSteps, updatedDistance, updatedCalories, updatedActiveTime) => {
@@ -146,6 +150,16 @@ function Goal() {
               >
                 <Icon name="notifications" size={25} color="#007BFF" />
                 <Text style={styles.notificationText}>Thông báo</Text>
+                <Icon name="chevron-right" size={25} color="#6C757D" style={styles.arrowIcon} />
+
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.Spo2}
+                onPress={handleSpo2Press}
+              >
+                <Icon name="favorite" size={25} color="#007BFF" />
+                <Text style={styles.notificationText}>SPO2</Text>
                 <Icon name="chevron-right" size={25} color="#6C757D" style={styles.arrowIcon} />
 
               </TouchableOpacity>
@@ -273,6 +287,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 40,
+    justifyContent: "space-between"
+  },
+  Spo2: {
+    flexDirection: "row",
+    marginTop: 20,
+    alignItems: "center",
     justifyContent: "space-between"
   },
   notificationText: {

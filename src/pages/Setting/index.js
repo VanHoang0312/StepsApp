@@ -1,17 +1,25 @@
-import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, View, SafeAreaView, ScrollView, Switch, TouchableOpacity, Button } from "react-native";
 import { Avatar, Text, List, RadioButton } from 'react-native-paper';
 import { openDB } from "../../../Database/database";
 import { getAllGoalsData } from "../../../Database/GoalsDatabase";
 import { getAllActivityData } from "../../../Database/DailyDatabase"
 import { getAllbodyData } from "../../../Database/BodyDatabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getCurrentData } from "../../services/userService";
+import { useDispatch } from "react-redux";
+import { checkLogin } from "../../action/login";
 
 function Setting() {
   const [theme, setTheme] = useState('light');
   const [iconColor, setIconColor] = useState('#00BFFF');
   const [isIconTinted, setIsIconTinted] = useState(false);
+  const [userName, setUserName] = useState(null);
   const navigation = useNavigation()
+  const dispatch = useDispatch()
+
+
   const handleLogData = async () => {
     const db = await openDB();
     await getAllActivityData(db);
@@ -26,6 +34,36 @@ function Setting() {
     await getAllbodyData(db)
   }
 
+  const getUserInfo = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (token) {
+        const response = await getCurrentData(token);
+        if (response?.message?.name) {
+          setUserName(response.message.name);
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin người dùng:", error);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      getUserInfo();
+    }, [])
+  );
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem("token"); // Xóa token đăng nhập
+      setUserName(null);
+      dispatch(checkLogin(false))
+    } catch (error) {
+      console.error("Lỗi khi đăng xuất:", error);
+    }
+  };
+
   return (
     <>
       <SafeAreaView style={styles.container}>
@@ -33,16 +71,33 @@ function Setting() {
           {/* Account Section */}
           <List.Section>
             <List.Subheader>Account</List.Subheader>
-            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: '#FFF', borderRadius: 10 }}
-              onPress={() => navigation.navigate('Login')}
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: '#FFF', borderRadius: 10 }}
+              onPress={() => !userName && navigation.navigate('Login')} // Nếu đã đăng nhập, không chuyển hướng
             >
               <Avatar.Text size={50} style={{ backgroundColor: '#E57373' }} />
               <View style={{ marginLeft: 15 }}>
-                <Text variant="titleMedium">Create Free Account</Text>
-                <Text variant="bodySmall" style={{ color: 'gray' }}>or Sign-In</Text>
+                <Text variant="titleMedium">
+                  {userName ? userName : "Create Free Account"} {/* Hiển thị tên hoặc 'Create Free Account' */}
+                </Text>
+                {!userName && <Text variant="bodySmall" style={{ color: 'gray' }}>or Sign-In</Text>}
               </View>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                marginTop: 10,
+                backgroundColor: "#0000FF",
+                padding: 10,
+                borderRadius: 10,
+                alignItems: "center",
+              }}
+              onPress={handleLogout}
+            >
+              <Text style={{ color: "white", fontWeight: "bold" }}>Đăng xuất</Text>
+            </TouchableOpacity>
           </List.Section>
+
 
           {/* Theme Selection */}
           <List.Section>
