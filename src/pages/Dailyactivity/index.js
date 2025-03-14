@@ -13,7 +13,7 @@ import Linechart from '../../component/Linechart';
 import { openDB } from '../../../Database/database';
 import { createTable, saveStepsToSQLite, loadStepsFromSQLite } from "../../../Database/DailyDatabase"
 import { loadGoalFromSQLite, createGoalsTable } from '../../../Database/GoalsDatabase'
-import { loadBodyFromSQLite } from '../../../Database/BodyDatabase';
+import { loadBodyFromSQLite, loadLatestBodyFromSQLite } from '../../../Database/BodyDatabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCurrentData } from '../../services/userService';
 
@@ -98,37 +98,104 @@ const Dailyactivity = () => {
 
 
   // Hàm theo dõi bước chân
+  // const subscribe = async (database) => {
+  //   const isAvailable = await Pedometer.isAvailableAsync();
+  //   if (!isAvailable) {
+  //     console.warn("Cảm biến bước chân không khả dụng!");
+  //     return;
+  //   }
+  //   let savedData = await loadStepsFromSQLite(database);
+  //   if (!savedData) {
+  //     savedData = { steps: 0, calories: 0, distance: 0, activeTime: 0 };
+  //   }
+  //   console.log("Dữ liệu đã lưu từ SQLite:", savedData);
+  //   setStepCount(savedData.steps);
+  //   setCalories(savedData.calories);
+  //   setDistance(savedData.distance);
+  //   setActiveTime(savedData.activeTime);
+
+  //   let lastSteps = null; // Để `null` ban đầu để kiểm tra cảm biến
+  //   console.log("Chờ cảm biến cập nhật...");
+
+  //   const pedometerSubscription = Pedometer.watchStepCount((result) => {
+  //     console.log("Cảm biến đếm:", result.steps);
+
+  //     if (lastSteps === null) {
+  //       // Lần đầu tiên, đồng bộ `lastSteps` với cảm biến
+  //       lastSteps = result.steps;
+  //       console.log("Đồng bộ lastSteps với cảm biến:", lastSteps);
+  //       return;
+  //     }
+
+  //     if (result.steps < lastSteps) {
+  //       console.warn(" Số bước cảm biến nhỏ hơn lastSteps. Đồng bộ lại!");
+  //       lastSteps = result.steps;
+  //       return;
+  //     }
+
+  //     const stepsToAdd = result.steps - lastSteps;
+  //     if (stepsToAdd > 0) {
+  //       setStepCount((prev) => {
+  //         const updatedSteps = prev + stepsToAdd;
+  //         console.log(` Đếm thêm: ${stepsToAdd}, Tổng bước: ${updatedSteps}`);
+
+  //         loadBodyFromSQLite(database, getDayName()).then((bodyData) => {
+  //           console.log("📅 Tên ngày lấy được:", getDayName());
+  //           if (bodyData) {
+  //             saveSteps(updatedSteps, database, bodyData);
+  //           } else {
+  //             console.error("Không thể tải dữ liệu body!");
+  //           }
+  //         });
+  //         // Lưu ngay vào SQLite sau khi UI cập nhật
+  //         //saveSteps(updatedSteps, database);
+  //         return updatedSteps;
+  //       });
+  //     }
+
+  //     lastSteps = result.steps; // Cập nhật lastSteps
+  //   });
+
+  //   setSubscription(pedometerSubscription);
+  // };
+
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split("T")[0]; // Trả về 'YYYY-MM-DD'
+  };
+
   const subscribe = async (database) => {
     const isAvailable = await Pedometer.isAvailableAsync();
     if (!isAvailable) {
-      console.warn("Cảm biến bước chân không khả dụng!");
+      console.warn("🚫 Cảm biến bước chân không khả dụng!");
       return;
     }
+
     let savedData = await loadStepsFromSQLite(database);
     if (!savedData) {
       savedData = { steps: 0, calories: 0, distance: 0, activeTime: 0 };
     }
-    console.log("Dữ liệu đã lưu từ SQLite:", savedData);
+    console.log("✅ Dữ liệu đã lưu từ SQLite:", savedData);
+
     setStepCount(savedData.steps);
     setCalories(savedData.calories);
     setDistance(savedData.distance);
     setActiveTime(savedData.activeTime);
 
-    let lastSteps = null; // Để `null` ban đầu để kiểm tra cảm biến
-    console.log("Chờ cảm biến cập nhật...");
+    let lastSteps = null;
+    console.log("⏳ Chờ cảm biến cập nhật...");
 
-    const pedometerSubscription = Pedometer.watchStepCount((result) => {
-      console.log("Cảm biến đếm:", result.steps);
+    const pedometerSubscription = Pedometer.watchStepCount(async (result) => {
+      console.log("👣 Cảm biến đếm:", result.steps);
 
       if (lastSteps === null) {
-        // Lần đầu tiên, đồng bộ `lastSteps` với cảm biến
         lastSteps = result.steps;
-        console.log("Đồng bộ lastSteps với cảm biến:", lastSteps);
+        console.log("🔄 Đồng bộ lastSteps với cảm biến:", lastSteps);
         return;
       }
 
       if (result.steps < lastSteps) {
-        console.warn(" Số bước cảm biến nhỏ hơn lastSteps. Đồng bộ lại!");
+        console.warn("⚠️ Số bước cảm biến nhỏ hơn lastSteps. Đồng bộ lại!");
         lastSteps = result.steps;
         return;
       }
@@ -137,22 +204,34 @@ const Dailyactivity = () => {
       if (stepsToAdd > 0) {
         setStepCount((prev) => {
           const updatedSteps = prev + stepsToAdd;
-          console.log(` Đếm thêm: ${stepsToAdd}, Tổng bước: ${updatedSteps}`);
+          console.log(`📊 Đếm thêm: ${stepsToAdd}, Tổng bước: ${updatedSteps}`);
 
-          loadBodyFromSQLite(database, getDayName()).then((bodyData) => {
-            if (bodyData) {
-              saveSteps(updatedSteps, database, bodyData);
-            } else {
-              console.error("Không thể tải dữ liệu body!");
-            }
-          });
-          // Lưu ngay vào SQLite sau khi UI cập nhật
-          //saveSteps(updatedSteps, database);
+          const today = getTodayDate();
+          console.log("📅 Ngày hiện tại:", today);
+
+          loadBodyFromSQLite(database, today)
+            .then((bodyData) => {
+              if (!bodyData) {
+                console.warn(`⚠️ Không có dữ liệu cho ${today}, thử lấy dữ liệu gần nhất...`);
+                return loadLatestBodyFromSQLite(database, today);
+              }
+              return bodyData;
+            })
+            .then((bodyData) => {
+              if (bodyData) {
+                console.log("✅ Dữ liệu body được sử dụng:", bodyData);
+                saveSteps(updatedSteps, database, bodyData);
+              } else {
+                console.error("❌ Không thể tải dữ liệu body!");
+              }
+            })
+            .catch((error) => console.error("🚨 Lỗi khi tải body:", error));
+
           return updatedSteps;
         });
       }
 
-      lastSteps = result.steps; // Cập nhật lastSteps
+      lastSteps = result.steps;
     });
 
     setSubscription(pedometerSubscription);

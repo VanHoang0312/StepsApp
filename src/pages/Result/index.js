@@ -65,7 +65,7 @@ function Result() {
         barStyle="dark-content"
       />
       <SafeAreaView style={[styles.container]} edges={['top', 'left', 'right']}>
-        <View style={{ alignItems: 'center' }} >
+        <View style={{ alignItems: 'center' }}>
           <SwitchResult
             selectionMode={1}
             option1="Kết quả"
@@ -73,10 +73,13 @@ function Result() {
             onSelectSwitch={onSelectSwitch}
           />
         </View>
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }}
-          showsVerticalScrollIndicator={false} style={{ padding: 20 }}>
-          {/* Giao diện chính */}
-          {giftTab === 1 && (
+
+        {giftTab === 1 ? (
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1 }}
+            showsVerticalScrollIndicator={false}
+            style={{ padding: 20 }}
+          >
             <View style={{ marginTop: -5 }}>
               <Text style={styles.title}>Thông tin chi tiết</Text>
               <Text style={styles.subtitle}>Xu hướng. Tổng số. Hồ sơ.</Text>
@@ -93,7 +96,6 @@ function Result() {
                     >
                       {data}
                     </Text>
-
                   </View>
                   <View>
                     <Text style={styles.label}>THƯỜNG</Text>
@@ -104,8 +106,9 @@ function Result() {
                 <StepComparisonChart average={average} />
 
                 <TouchableOpacity
-                  style={[styles.button,
-                  { color: data >= average ? "#0000FF" : "#FF4D4F" }
+                  style={[
+                    styles.button,
+                    { color: data >= average ? "#0000FF" : "#FF4D4F" },
                   ]}
                   onPress={() => setModalVisible(true)}
                 >
@@ -118,46 +121,44 @@ function Result() {
                     : "Cho đến giờ, bạn đã đi ít bước hơn thường lệ."}
                 </Text>
               </View>
-
             </View>
-          )}
+          </ScrollView>
+        ) : (
+          <Gift />
+        )}
 
-          {giftTab === 2 && <Gift />}
+        {/* Modal */}
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Ngày của tôi</Text>
 
-          {/* Modal */}
-          <Modal
-            visible={modalVisible}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setModalVisible(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Ngày của tôi</Text>
+              <FlatList
+                data={options}
+                keyExtractor={(item) => item.label}
+                renderItem={({ item }) => (
+                  <TouchableOpacity style={styles.option}>
+                    <Text style={styles.optionText}>{item.label}</Text>
+                  </TouchableOpacity>
+                )}
+              />
 
-                <FlatList
-                  data={options}
-                  keyExtractor={(item) => item.label}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.option}>
-                      <Text style={styles.optionText}>{item.label}</Text>
-                    </TouchableOpacity>
-                  )}
-                />
-
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Text style={styles.closeButtonText}>Đóng</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.closeButtonText}>Đóng</Text>
+              </TouchableOpacity>
             </View>
-          </Modal>
-        </ScrollView>
-      </SafeAreaView >
+          </View>
+        </Modal>
+      </SafeAreaView>
     </>
-
   );
 }
 
