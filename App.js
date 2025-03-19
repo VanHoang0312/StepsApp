@@ -5,6 +5,7 @@ import { registerBackgroundTask } from './Chayngam/backgroundTask';
 import allReducer from './src/reducers/index'
 import { createStore } from 'redux';
 import { Provider } from 'react-redux';
+//import SettingStack from './app/(tabs)/SettingStack';
 
 const store = createStore(allReducer)
 

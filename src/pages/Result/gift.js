@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Text, View, StyleSheet, SafeAreaView, ScrollView, FlatList } from "react-native";
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import * as Progress from 'react-native-progress';
+import { useSelector } from "react-redux";
+import { useNavigation } from "@react-navigation/native";
+import loginReducer from "../../reducers/login"
 
 const badges = [
   { id: '1', title: '5k Bước', icon: 'shoe-prints', progress: 0.3 },
@@ -29,6 +32,17 @@ const BadgeItem = ({ item }) => (
 );
 
 function Gift() {
+
+  // const isLoggedIn = useSelector((state) => state.loginReducer); // Lấy trạng thái đăng nhập từ Redux
+  // const navigation = useNavigation();
+
+  // useEffect(() => {
+  //   if (!isLoggedIn) {
+  //     navigation.navigate("Login"); // Chuyển về Login nếu chưa đăng nhập
+  //   }
+  // }, [isLoggedIn]);
+
+
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Phần thưởng</Text>
@@ -55,11 +69,13 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "bold",
     color: "#000",
+    marginLeft: 10
   },
   subtitle: {
     fontSize: 18,
     color: "#8C8C8C",
     marginBottom: 20,
+    marginLeft: 10
   },
   listContainer: {
     alignItems: 'center',
@@ -77,7 +93,8 @@ const styles = StyleSheet.create({
   subtitle1: {
     marginTop: 20,
     color: "#909090",
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    marginLeft: 10
   }
 });
 

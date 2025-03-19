@@ -3,11 +3,15 @@ import { View, Text, SafeAreaView, ScrollView, StyleSheet, Dimensions, Touchable
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { openDB } from "../../../Database/database";
 import { useNavigation } from '@react-navigation/native';
+import { loadLatestBodyFromSQLite } from "../../../Database/BodyDatabase";
 
 
 function WeeklyActivity() {
   const [stepsData, setStepsData] = useState([0, 0, 0, 0, 0, 0, 0]);
   const [weekRange, setWeekRange] = useState("");
+  const [distance, setDistance] = useState(0); // Thêm state cho khoảng cách
+  const [calories, setCalories] = useState(0); // Thêm state cho calo
+  const [activeTime, setActiveTime] = useState(0); // Thêm state cho thời gian hoạt động
   const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
   const navigation = useNavigation();
 
@@ -62,6 +66,30 @@ function WeeklyActivity() {
         );
 
         setStepsData(steps);
+
+        const totalSteps = steps.reduce((a, b) => a + b, 0);
+        // Lấy dữ liệu body gần nhất từ BodyDatabase
+        const bodyData = await loadLatestBodyFromSQLite(db, daysOfWeek[6]); // Dùng ngày cuối tuần để lấy dữ liệu gần nhất
+        if (bodyData) {
+          console.log("Dữ liệu body gần nhất:", bodyData);
+          const { stepLength, weight } = bodyData;
+
+          // Tính toán chính xác
+          const calculatedDistance = ((totalSteps * stepLength) / 100000).toFixed(2); // km
+          const calculatedCalories = (calculatedDistance * weight * 0.75).toFixed(2); // kcal
+          const calculatedActiveTime = Math.floor(totalSteps / 100); // phút
+
+          setDistance(calculatedDistance);
+          setCalories(calculatedCalories);
+          setActiveTime(calculatedActiveTime);
+        } else {
+          console.warn("Không tìm thấy dữ liệu body, dùng giá trị mặc định");
+          // Dùng công thức mặc định nếu không có body data
+          setDistance((totalSteps / 1300).toFixed(2));
+          setCalories((totalSteps / 1300 * 60).toFixed(2));
+          setActiveTime(Math.floor(totalSteps / 80));
+        }
+
       } catch (error) {
         console.error("Lỗi lấy dữ liệu bước chân:", error);
       }
@@ -115,15 +143,15 @@ function WeeklyActivity() {
         {/* Thông tin bên dưới */}
         <View style={styles.infoContainer}>
           <View style={styles.infoBox}>
-            <Text style={[styles.infoValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>{(stepsData.reduce((a, b) => a + b, 0) / 1300 * 60).toFixed(2)} kcal</Text>
+            <Text style={[styles.infoValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>{calories} kcal</Text>
             <Text style={styles.infoLabel}>CALORIES</Text>
           </View>
           <View style={styles.infoBox}>
-            <Text style={[styles.infoValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>{(stepsData.reduce((a, b) => a + b, 0) / 1300).toFixed(2)} m</Text>
+            <Text style={[styles.infoValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>{distance} m</Text>
             <Text style={styles.infoLabel}>KHOẢNG CÁCH</Text>
           </View>
           <View style={styles.infoBox}>
-            <Text style={[styles.infoValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>{Math.floor(stepsData.reduce((a, b) => a + b, 0) / 80)} phút</Text>
+            <Text style={[styles.infoValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>{activeTime} phút</Text>
             <Text style={styles.infoLabel}>THỜI GIAN HOẠT ĐỘNG</Text>
           </View>
         </View>
@@ -231,7 +259,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
-    elevation: 3, 
+    elevation: 3,
     shadowColor: '#000', // Đổ bóng (iOS)
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

@@ -15,7 +15,7 @@ function Spo2() {
   const [isSpo2ModalVisible, setIsSpo2ModalVisible] = useState(false);
   const [loading, setLoading] = useState(null);
   const [scanning, setScanning] = useState(false);
-  const [spo2Rate, setSpO2Rate] = useState(0)
+  const [spo2Rate, setSpO2Rate] = useState(null)
 
 
 
