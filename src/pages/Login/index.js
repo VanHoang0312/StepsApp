@@ -6,6 +6,7 @@ import * as user from "../../services/userService";
 import { useDispatch } from "react-redux";
 import { checkLogin } from "../../action/login"
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from '../../helpers/AuthContext';
 
 
 const Login = () => {
@@ -15,6 +16,7 @@ const Login = () => {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
+  const { login } = useAuth()
 
   const handleLogin = async () => {
     if (!email || !password) {

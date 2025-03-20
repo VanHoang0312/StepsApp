@@ -1,57 +1,30 @@
 import SQLite from 'react-native-sqlite-storage';
 SQLite.enablePromise(true);
 
-// Hàm tạo bảng hoạt động
+// Hàm tạo bảng hoạt động với cột userId
 const createTable = async (db) => {
   try {
     await db.transaction(async (tx) => {
       await tx.executeSql(
-        'CREATE TABLE IF NOT EXISTS activity (id INTEGER PRIMARY KEY AUTOINCREMENT, day TEXT, steps INTEGER, distance REAL, calories REAL, activeTime INTEGER)'
+        `CREATE TABLE IF NOT EXISTS activity (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          userId TEXT,                
+          day TEXT,
+          steps INTEGER,
+          distance REAL,
+          calories REAL,
+          activeTime INTEGER
+        )`
       );
     });
-    console.log("Table created successfully");
+    console.log("Table created successfully with userId column");
   } catch (error) {
     console.error("Error creating table:", error);
   }
 };
 
-// Lưu dữ liệu
-// const saveStepsToSQLite = async (db, steps, distance, calories, activeTime) => {
-//   try {
-//     const today = new Date().toISOString().split('T')[0];
-
-//     await db.transaction(async (tx) => {
-//       // Kiểm tra nếu đã có dữ liệu hôm nay
-//       tx.executeSql(
-//         'SELECT * FROM activity WHERE day = ?',
-//         [today],
-//         (tx, results) => {
-//           if (results.rows.length > 0) {
-//             // Đã có dữ liệu => Chỉ cập nhật thay vì thêm mới
-//             tx.executeSql(
-//               'UPDATE activity SET steps = ?, distance = ?, calories = ?, activeTime = ? WHERE day = ?',
-//               [steps, distance, calories, activeTime, today],
-//               () => console.log('Updated existing record'),
-//               (tx, error) => console.error('Error updating record:', error)
-//             );
-//           } else {
-//             // Chưa có dữ liệu => Thêm mới
-//             tx.executeSql(
-//               'INSERT INTO activity (day, steps, distance, calories, activeTime) VALUES (?, ?, ?, ?, ?)',
-//               [today, steps, distance, calories, activeTime],
-//               () => console.log('Inserted new record'),
-//               (tx, error) => console.error('Error inserting record:', error)
-//             );
-//           }
-//         },
-//         (tx, error) => console.error('Error checking existing record:', error)
-//       );
-//     });
-//   } catch (error) {
-//     console.error('Error saving data to SQLite:', error);
-//   }
-// };
-const saveStepsToSQLite = async (db, steps, distance, calories, activeTime) => {
+// Lưu dữ liệu với userId
+const saveStepsToSQLite = async (db, userId, steps, distance, calories, activeTime) => {
   try {
     const today = new Date().toISOString().split('T')[0];
 
@@ -62,19 +35,19 @@ const saveStepsToSQLite = async (db, steps, distance, calories, activeTime) => {
         [today],
         (_, results) => {
           if (results.rows.length > 0) {
-            // Nếu đã có dữ liệu thì cập nhật
+            // Nếu đã có dữ liệu thì cập nhật, bao gồm userId
             tx.executeSql(
-              'UPDATE activity SET steps = ?, distance = ?, calories = ?, activeTime = ? WHERE day = ?',
-              [steps, distance, calories, activeTime, today],
-              () => console.log('Updated existing record'),
+              'UPDATE activity SET userId = ?, steps = ?, distance = ?, calories = ?, activeTime = ? WHERE day = ?',
+              [userId, steps, distance, calories, activeTime, today],
+              () => console.log('Updated existing record with userId:', userId),
               (_, error) => console.error('Error updating record:', error)
             );
           } else {
-            // Nếu chưa có dữ liệu thì thêm mới, kể cả khi các giá trị là 0
+            // Nếu chưa có dữ liệu thì thêm mới
             tx.executeSql(
-              'INSERT INTO activity (day, steps, distance, calories, activeTime) VALUES (?, ?, ?, ?, ?)',
-              [today, steps, distance, calories, activeTime],
-              () => console.log('Inserted new record for', today),
+              'INSERT INTO activity (userId, day, steps, distance, calories, activeTime) VALUES (?, ?, ?, ?, ?, ?)',
+              [userId, today, steps, distance, calories, activeTime],
+              () => console.log('Inserted new record for', today, 'with userId:', userId),
               (_, error) => console.error('Error inserting record:', error)
             );
           }
@@ -87,9 +60,6 @@ const saveStepsToSQLite = async (db, steps, distance, calories, activeTime) => {
   }
 };
 
-
-
-
 // Load dữ liệu
 const loadStepsFromSQLite = async (db) => {
   return new Promise((resolve, reject) => {
@@ -98,13 +68,14 @@ const loadStepsFromSQLite = async (db) => {
 
       db.transaction((tx) => {
         tx.executeSql(
-          'SELECT day, steps, calories, distance, activeTime FROM activity WHERE day = ?',
+          'SELECT userId, day, steps, calories, distance, activeTime FROM activity WHERE day = ?',
           [today],
           (tx, results) => {
             if (results.rows.length > 0) {
               const row = results.rows.item(0);
               console.log("Loaded data from SQLite:", row);
               resolve({
+                userId: row.userId || null, // Thêm userId
                 day: row.day,
                 steps: row.steps || 0,
                 calories: row.calories || 0,
@@ -114,6 +85,7 @@ const loadStepsFromSQLite = async (db) => {
             } else {
               console.log("No data found for today, defaulting to 0.");
               resolve({
+                userId: null, // Mặc định NULL nếu chưa đăng nhập
                 day: today,
                 steps: 0,
                 calories: 0,
@@ -135,7 +107,7 @@ const loadStepsFromSQLite = async (db) => {
   });
 };
 
-// Hàm lấy dữ liệu theo ngày từ bảng activity
+// Hàm lấy dữ liệu theo ngày
 const getActivityByDay = async (db, day) => {
   return new Promise((resolve, reject) => {
     try {
@@ -160,13 +132,13 @@ const getActivityByDay = async (db, day) => {
         );
       });
     } catch (error) {
-      console.error(` Error in getActivityByDay:`, error);
+      console.error(`Error in getActivityByDay:`, error);
       reject(error);
     }
   });
 };
 
-// Hàm lấy toàn bộ dữ liệu từ bảng activity
+// Hàm lấy toàn bộ dữ liệu
 const getAllActivityData = async (db) => {
   return new Promise((resolve, reject) => {
     try {
@@ -196,11 +168,27 @@ const getAllActivityData = async (db) => {
   });
 };
 
+// Hàm cập nhật userId cho dữ liệu cũ khi đăng nhập
+const assignUserIdToOldData = async (db, userId) => {
+  try {
+    await db.transaction(async (tx) => {
+      await tx.executeSql(
+        'UPDATE activity SET userId = ? WHERE userId IS NULL',
+        [userId],
+        () => console.log(`Assigned userId ${userId} to old data`),
+        (_, error) => console.error('Error updating userId:', error)
+      );
+    });
+  } catch (error) {
+    console.error('Error assigning userId to old data:', error);
+  }
+};
+
 export {
   createTable,
   saveStepsToSQLite,
   loadStepsFromSQLite,
   getActivityByDay,
   getAllActivityData,
+  assignUserIdToOldData, // Thêm hàm mới
 };
-

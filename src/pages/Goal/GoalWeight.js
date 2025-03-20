@@ -17,7 +17,7 @@ function GoalWeight() {
       try {
         const database = await openDB()
         setDb(database)
-        const loadWeight = await loadBodyFromSQLite(database, today)
+        const loadWeight = await loadBodyFromSQLite(database, userId, today)
         setWeight(loadWeight.weight);
         setBodysize(loadWeight.bodysize)
       } catch (error) {

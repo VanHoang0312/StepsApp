@@ -11,8 +11,8 @@ import Weeklyactivity from '../Weeklyactivity';
 import Monthlyactivity from '../Monthlyactivity';
 import Linechart from '../../component/Linechart';
 import { openDB } from '../../../Database/database';
-import { createTable, saveStepsToSQLite, loadStepsFromSQLite } from "../../../Database/DailyDatabase"
-import { loadGoalFromSQLite, createGoalsTable } from '../../../Database/GoalsDatabase'
+import { createTable, saveStepsToSQLite, loadStepsFromSQLite, assignUserIdToOldData } from "../../../Database/DailyDatabase"
+import { loadGoalFromSQLite, createGoalsTable, loadLatestGoalFromSQLite } from '../../../Database/GoalsDatabase'
 import { loadBodyFromSQLite, loadLatestBodyFromSQLite } from '../../../Database/BodyDatabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCurrentData } from '../../services/userService';
@@ -37,6 +37,7 @@ const Dailyactivity = () => {
   const [goalDistance, setGoalDistance] = useState(3);
   const [goalActiveTime, setGoalActiveTime] = useState(30);
   const [db, setDb] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   // Lưu số bước vào SQLite
   // const saveSteps = (updatedSteps, database) => {
@@ -91,11 +92,33 @@ const Dailyactivity = () => {
       const now = Date.now();
       if (now - lastSavedTime > 3000) { // Chỉ lưu sau mỗi 3 giây
         setLastSavedTime(now);
-        saveStepsToSQLite(database, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
+        saveStepsToSQLite(database, userId, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
       }
     }
   };
 
+  const getUserId = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (token) {
+        const response = await getCurrentData(token);
+        if (response && response.message && response.message._id) {
+          const newUserId = response.message._id; // "67c7cc4ad8af9d25b88924f7"
+          console.log("✅ UserId lấy từ API:", newUserId);
+          setUserId(newUserId);
+          if (db) {
+            await assignUserIdToOldData(db, newUserId); // Gắn userId vào dữ liệu cũ
+          }
+          return newUserId;
+        }
+      }
+      console.log("⚠️ Không tìm thấy userId");
+      return null;
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy userId:", error);
+      return null;
+    }
+  };
 
   // Hàm theo dõi bước chân
   // const subscribe = async (database) => {
@@ -181,6 +204,7 @@ const Dailyactivity = () => {
     setCalories(savedData.calories);
     setDistance(savedData.distance);
     setActiveTime(savedData.activeTime);
+    setUserId(savedData.userId);
 
     let lastSteps = null;
     console.log("⏳ Chờ cảm biến cập nhật...");
@@ -209,11 +233,11 @@ const Dailyactivity = () => {
           const today = getTodayDate();
           console.log("📅 Ngày hiện tại:", today);
 
-          loadBodyFromSQLite(database, today)
+          loadBodyFromSQLite(database, userId, today)
             .then((bodyData) => {
               if (!bodyData) {
                 console.warn(`⚠️ Không có dữ liệu cho ${today}, thử lấy dữ liệu gần nhất...`);
-                return loadLatestBodyFromSQLite(database, today);
+                return loadLatestBodyFromSQLite(database, userId, today);
               }
               return bodyData;
             })
@@ -253,24 +277,74 @@ const Dailyactivity = () => {
     }
   };
 
-  const fetchGoal = async (db) => {
+  // const fetchGoal = async (db) => {
+  //   try {
+  //     const today = new Date().toISOString().split('T')[0];
+  //     const goal = await loadGoalFromSQLite(db, today);
+
+  //     if (goal) {
+  //       setGoalSteps(goal.steps ?? 0);
+  //       setGoalCalories(goal.calories ?? 0);
+  //       setGoalDistance(goal.distance ?? 0);
+  //       setGoalActiveTime(goal.activeTime ?? 0);
+
+  //       console.log('Mục tiêu tải từ SQLite:', goal);
+  //     } else {
+  //       console.log('Không có mục tiêu cho hôm nay.');
+  //     }
+
+  //   } catch (error) {
+  //     console.error('Lỗi khi tải mục tiêu:', error);
+  //   }
+  // };
+
+  const fetchGoal = async (database, currentUserId) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const goal = await loadGoalFromSQLite(db, today);
-
-      if (goal) {
-        setGoalSteps(goal.steps ?? 0);
-        setGoalCalories(goal.calories ?? 0);
-        setGoalDistance(goal.distance ?? 0);
-        setGoalActiveTime(goal.activeTime ?? 0);
-
-        console.log('Mục tiêu tải từ SQLite:', goal);
-      } else {
-        console.log('Không có mục tiêu cho hôm nay.');
+      if (!database || !currentUserId) {
+        console.warn("⚠️ Thiếu database hoặc userId, sử dụng giá trị mặc định.");
+        setGoalSteps(6000);
+        setGoalCalories(200);
+        setGoalDistance(3);
+        setGoalActiveTime(30);
+        return;
       }
 
+      const today = new Date().toISOString().split('T')[0];
+      console.log("📅 Ngày load mục tiêu:", today, "với userId:", currentUserId);
+
+      // Load mục tiêu theo userId và ngày hiện tại
+      const goal = await loadGoalFromSQLite(database, currentUserId, today);
+
+      if (goal) {
+        setGoalSteps(goal.steps ?? 6000);
+        setGoalCalories(goal.calories ?? 200);
+        setGoalDistance(goal.distance ?? 3);
+        setGoalActiveTime(goal.activeTime ?? 30);
+        console.log('✅ Mục tiêu tải từ SQLite:', goal);
+      } else {
+        console.log('⚠️ Không có mục tiêu cho hôm nay, thử lấy mục tiêu gần nhất...');
+        const latestGoal = await loadLatestGoalFromSQLite(database, currentUserId, today);
+        if (latestGoal) {
+          setGoalSteps(latestGoal.steps ?? 6000);
+          setGoalCalories(latestGoal.calories ?? 200);
+          setGoalDistance(latestGoal.distance ?? 3);
+          setGoalActiveTime(latestGoal.activeTime ?? 30);
+          console.log('✅ Mục tiêu gần nhất tải từ SQLite:', latestGoal);
+        } else {
+          console.log('⚠️ Không có mục tiêu nào, dùng giá trị mặc định.');
+          setGoalSteps(6000);
+          setGoalCalories(200);
+          setGoalDistance(3);
+          setGoalActiveTime(30);
+        }
+      }
     } catch (error) {
-      console.error('Lỗi khi tải mục tiêu:', error);
+      console.error('🚨 Lỗi khi tải mục tiêu:', error);
+      // Fallback về giá trị mặc định nếu có lỗi
+      setGoalSteps(6000);
+      setGoalCalories(200);
+      setGoalDistance(3);
+      setGoalActiveTime(30);
     }
   };
 
@@ -284,11 +358,11 @@ const Dailyactivity = () => {
         }
         console.log("✅ Token lấy được:", token);
       } else {
-        console.log("⚠️ Không tìm thấy token trong AsyncStorage");
+        console.log("Không tìm thấy token trong AsyncStorage");
       }
       return token; // Trả về token nếu cần dùng ở nơi khác
     } catch (error) {
-      console.error("❌ Lỗi khi lấy token:", error);
+      console.error("Lỗi khi lấy token:", error);
       return null;
     }
   };
@@ -324,9 +398,14 @@ const Dailyactivity = () => {
         setDb(database);
         await createTable(database);
         await createGoalsTable(database)
-        loadStepsFromSQLite(database, setStepCount);
-        fetchGoal(database);
-        subscribe(database);
+
+        const currentUserId = await getUserId();
+        if (currentUserId) {
+          setUserId(currentUserId); // Cập nhật state userId
+          await fetchGoal(database, currentUserId);
+          await subscribe(database);
+        }
+        
       } catch (error) {
         console.error('Database initialization failed:', error);
       }
@@ -350,11 +429,20 @@ const Dailyactivity = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (db) {
-        fetchGoal(db); // Gọi lại hàm lấy mục tiêu khi màn hình focus
-        loadStepsFromSQLite(db, setStepCount);
+      if (db && userId) {
+        fetchGoal(db, userId); // Truyền cả db và userId
+        loadStepsFromSQLite(db, userId).then((data) => {
+          if (data) {
+            setStepCount(data.steps);
+            setCalories(data.calories);
+            setDistance(data.distance);
+            setActiveTime(data.activeTime);
+          }
+        });
+      } else {
+        console.warn("⚠️ Chưa có db hoặc userId khi focus, bỏ qua fetchGoal.");
       }
-    }, [db])
+    }, [db, userId])
   );
 
   //Cập nhật vòng tròn tiến trình

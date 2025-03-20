@@ -1,4 +1,4 @@
-const API_DOMAIN = "http://10.10.20.51:3002/api/";
+const API_DOMAIN = "http://172.20.10.7:3002/api/";
 //10.10.20.51 thinklab
 export const getCurrent = async (path, token) => {
   const response = await fetch(API_DOMAIN + path, {

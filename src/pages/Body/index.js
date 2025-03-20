@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, SafeAreaView, ScrollView } from "react-native";
 import { Button, Divider, TextInput } from "react-native-paper";
 import { Picker } from "@react-native-picker/picker";
-import { createBodyTable, loadBodyFromSQLite, loadLatestBodyFromSQLite, saveBodyToSQLite } from "../../../Database/BodyDatabase";
+import { createBodyTable, loadBodyFromSQLite, loadLatestBodyFromSQLite, saveBodyToSQLite, assignUserIdToOldBody } from "../../../Database/BodyDatabase";
 import { openDB } from "../../../Database/database";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCurrentData } from '../../services/userService';
 
 function Body() {
   const [gender, setGender] = useState("male");
@@ -12,51 +14,98 @@ function Body() {
   const [weight, setWeight] = useState(60);
   const [birthYear, setBirthYear] = useState(2000);
   const [db, setDb] = useState(null);
-
+  const [userId, setUserId] = useState(null); 
 
   const today = new Date().toISOString().split('T')[0];
+
+  // Lấy userId từ AsyncStorage hoặc API
+  const getUserId = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (token) {
+        const response = await getCurrentData(token);
+        if (response && response.message && response.message._id) {
+          const newUserId = response.message._id; 
+          console.log("✅ UserId body lấy từ API:", newUserId);
+          setUserId(newUserId);
+          return newUserId;
+        }
+      }
+      console.log("⚠️ Không tìm thấy userId");
+      return null;
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy userId:", error);
+      return null;
+    }
+  };
+
+  const loadBodyData = async (database, currentUserId) => {
+    // Tải dữ liệu body hôm nay
+    const loadBody = await loadBodyFromSQLite(database, currentUserId, today);
+    if (loadBody) {
+      setGender(loadBody.gender);
+      setBodysize(loadBody.bodysize);
+      setStepLength(loadBody.stepLength);
+      setWeight(loadBody.weight);
+      setBirthYear(loadBody.birthYear);
+    } else {
+      // Nếu chưa có dữ liệu hôm nay, lấy dữ liệu gần nhất
+      const latestBody = await loadLatestBodyFromSQLite(database, currentUserId, today);
+      if (latestBody) {
+        setGender(latestBody.gender);
+        setBodysize(latestBody.bodysize);
+        setStepLength(latestBody.stepLength);
+        setWeight(latestBody.weight);
+        setBirthYear(latestBody.birthYear);
+        // Lưu lại dữ liệu đó cho ngày hôm nay với userId
+        await saveBodyToSQLite(database, currentUserId, today, latestBody.gender, latestBody.bodysize, latestBody.stepLength, latestBody.weight, latestBody.birthYear);
+      } else {
+        // Nếu chưa có dữ liệu cũ, dùng giá trị mặc định và lưu vào DB
+        await saveBodyToSQLite(database, currentUserId, today, gender, bodysize, stepLength, weight, birthYear);
+      }
+    }
+  }
+
+  // Hàm xóa userId khỏi database khi đăng xuất
+  const removeUserIdFromBody = async (database) => {
+    try {
+      await database.transaction(async (tx) => {
+        await tx.executeSql(
+          'UPDATE body SET userId = NULL WHERE day = ?',
+          [today],
+          () => console.log(`Removed userId from body for ${today}`),
+          (_, error) => console.error('Error removing userId:', error)
+        );
+      });
+    } catch (error) {
+      console.error('Error removing userId from body:', error);
+    }
+  };
+
 
   useEffect(() => {
     const initDB = async () => {
       try {
-        const database = await openDB()
-        setDb(database)
-        // await dropBodyTable(database)
+        const database = await openDB();
+        setDb(database);
         await createBodyTable(database);
-        const loadBody = await loadBodyFromSQLite(database, today)
-        if (loadBody) {
-          setGender(loadBody.gender);
-          setBodysize(loadBody.bodysize);
-          setStepLength(loadBody.stepLength);
-          setWeight(loadBody.weight);
-          setBirthYear(loadBody.birthYear)
-        } else {
-          // Nếu chưa có mục tiêu hôm nay, lấy mục tiêu gần nhất
-          const latestBody = await loadLatestBodyFromSQLite(database, today);
-
-          if (latestBody) {
-            setGender(latestBody.gender);
-            setBodysize(latestBody.bodysize);
-            setStepLength(latestBody.stepLength);
-            setWeight(latestBody.weight);
-            setBirthYear(latestBody.birthYear)
-            // Lưu lại mục tiêu đó cho ngày hôm nay
-            await saveBodyToSQLite(database, today, latestBody.gender, latestBody.bodysize, latestBody.stepLength, latestBody.weight, latestBody.birthYear);
-          } else {
-            // Nếu chưa có dữ liệu cũ, dùng giá trị mặc định và lưu vào DB
-            await saveBodyToSQLite(database, today, gender, bodysize, stepLength, weight, birthYear);
-          }
-        }
+        const currentUserId = await getUserId(); // Lấy userId khi khởi động
+        setUserId(currentUserId)
+        await loadBodyData(database, currentUserId)
       } catch (error) {
         console.error('initDB failed:', error);
       }
-    }
+    };
     initDB();
   }, []);
 
   const handleSave = () => {
-    saveBodyToSQLite(db, today, gender, bodysize, stepLength, weight, birthYear);
-    alert("Dữ liệu đã được lưu!");
+    if (db) {
+      saveBodyToSQLite(db, userId, today, gender, bodysize, stepLength, weight, birthYear);
+      alert("Dữ liệu đã được lưu!");
+    } else {
+      console.error("Database not initialized!");
+    }
   };
 
   return (
@@ -112,9 +161,8 @@ function Body() {
         </View>
       </ScrollView>
     </SafeAreaView>
-
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

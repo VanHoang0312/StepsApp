@@ -3,33 +3,70 @@ import { Button, View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, 
 import SwitchGoal from '../../component/SwitchGoal';
 import GoalWeight from './GoalWeight';
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { openDB } from '../../../Database/database';
-import { saveGoalToSQLite, loadGoalFromSQLite, createGoalsTable, loadLatestGoalFromSQLite } from '../../../Database/GoalsDatabase';
+import { saveGoalToSQLite, loadGoalFromSQLite, createGoalsTable, loadLatestGoalFromSQLite, assignUserIdToOldGoals, deleteAllGoals } from '../../../Database/GoalsDatabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCurrentData } from '../../services/userService';
 
 function Goal() {
   const [goalTab, setGoalTab] = useState(1);
   const [steps, setSteps] = useState(6000);
   const [calories, setCalories] = useState(200);
   const [distance, setDistance] = useState(3);
-  const [activeTime, setActiveTime] = useState(30)
+  const [activeTime, setActiveTime] = useState(30);
   const [isEnabled, setIsEnabled] = useState(false);
   const [db, setDb] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const navigation = useNavigation();
+  const isFocused = useIsFocused(); // Kiểm tra khi màn hình được focus
 
-  const handleNotificationPress = () => {
-    navigation.navigate('Thông báo');
-  };
-
-  const handleSpo2Press = () => {
-    navigation.navigate('SPO2')
-  }
+  const handleNotificationPress = () => navigation.navigate('Thông báo');
+  const handleSpo2Press = () => navigation.navigate('SPO2');
 
   const today = new Date().toISOString().split('T')[0];
 
+  // Lấy userId từ AsyncStorage hoặc API
+  const getUserId = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (token) {
+        const response = await getCurrentData(token);
+        if (response && response.message && response.message._id) {
+          const newUserId = response.message._id;
+          console.log("✅ UserId goal lấy từ API:", newUserId);
+          setUserId(newUserId);
+          return newUserId;
+        }
+      }
+      console.log("⚠️ Không tìm thấy userId");
+      return null;
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy userId:", error);
+      return null;
+    }
+  };
+
+  // Hàm xóa toàn bộ dữ liệu
+  const handleDeleteAllGoals = async () => {
+    try {
+      if (db) {
+        await deleteAllGoals(db);
+        // Reset state về giá trị mặc định sau khi xóa
+        setSteps(6000);
+        setCalories(200);
+        setDistance(3);
+        setActiveTime(30);
+      }
+    } catch (error) {
+      console.error('Error deleting all goals:', error);
+    }
+  };
+
+  // Hàm lưu mục tiêu với userId
   const saveGoal = async (updatedSteps, updatedDistance, updatedCalories, updatedActiveTime) => {
     try {
       const database = await openDB();
@@ -37,44 +74,61 @@ function Goal() {
         console.error('Database not initialized!');
         return;
       }
-      await saveGoalToSQLite(database, today, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
-
+      const currentUserId = userId; // Dùng null nếu chưa đăng nhập
+      await saveGoalToSQLite(database, currentUserId, today, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
     } catch (error) {
       console.error('Error saving goal:', error);
     }
   };
 
+  const loadGoalData = async (database, currentUserId) => {
+    const savedGoal = await loadGoalFromSQLite(database, currentUserId, today);
+    if (savedGoal) {
+      setSteps(savedGoal.steps);
+      setCalories(savedGoal.calories);
+      setDistance(savedGoal.distance);
+      setActiveTime(savedGoal.activeTime);
+    } else {
+      const latestGoal = await loadLatestGoalFromSQLite(database, currentUserId, today);
+      if (latestGoal) {
+        setSteps(latestGoal.steps);
+        setCalories(latestGoal.calories);
+        setDistance(latestGoal.distance);
+        setActiveTime(latestGoal.activeTime);
+        await saveGoalToSQLite(database, currentUserId, today, latestGoal.steps, latestGoal.distance, latestGoal.calories, latestGoal.activeTime);
+      } else {
+        await saveGoalToSQLite(database, currentUserId, today, steps, distance, calories, activeTime);
+      }
+    }
+  };
+
+  // Hàm xóa userId khỏi database khi đăng xuất
+  const removeUserIdFromGoals = async (database) => {
+    try {
+      await database.transaction(async (tx) => {
+        await tx.executeSql(
+          'UPDATE goals SET userId = NULL WHERE day = ?',
+          [today],
+          () => console.log(`Removed userId from goals for ${today}`),
+          (_, error) => console.error('Error removing userId:', error)
+        );
+      });
+    } catch (error) {
+      console.error('Error removing userId from goals:', error);
+    }
+  };
+
+  // Khởi tạo database và lắng nghe thay đổi token
+  // Khởi tạo database
   useEffect(() => {
     const initDB = async () => {
       try {
         const database = await openDB();
         setDb(database);
         await createGoalsTable(database);
-
-        const savedGoal = await loadGoalFromSQLite(database, today);
-
-        if (savedGoal) {
-          setSteps(savedGoal.steps);
-          setCalories(savedGoal.calories);
-          setDistance(savedGoal.distance);
-          setActiveTime(savedGoal.activeTime);
-        } else {
-          // Nếu chưa có mục tiêu hôm nay, lấy mục tiêu gần nhất
-          const latestGoal = await loadLatestGoalFromSQLite(database, today);
-
-          if (latestGoal) {
-            setSteps(latestGoal.steps);
-            setCalories(latestGoal.calories);
-            setDistance(latestGoal.distance);
-            setActiveTime(latestGoal.activeTime);
-
-            // Lưu lại mục tiêu đó cho ngày hôm nay
-            await saveGoalToSQLite(database, today, latestGoal.steps, latestGoal.distance, latestGoal.calories, latestGoal.activeTime);
-          } else {
-            // Nếu chưa có dữ liệu cũ, dùng giá trị mặc định và lưu vào DB
-            await saveGoalToSQLite(database, today, steps, distance, calories, activeTime);
-          }
-        }
+        const currentUserId = await getUserId();
+        setUserId(currentUserId);
+        await loadGoalData(database, currentUserId);
       } catch (error) {
         console.error('initDB failed:', error);
       }
@@ -83,11 +137,50 @@ function Goal() {
     initDB();
   }, []);
 
+  // Kiểm tra auth và reload dữ liệu khi màn hình được focus
+  useEffect(() => {
+    const checkAuthAndReload = async () => {
+      if (!db) return;
+      const token = await AsyncStorage.getItem("token");
+      const newUserId = token ? await getUserId() : null;
+
+      if (newUserId !== userId) { // Nếu trạng thái auth thay đổi
+        setUserId(newUserId);
+        if (newUserId) {
+          // Đăng nhập: Gắn userId và tải lại dữ liệu
+          await assignUserIdToOldGoals(db, newUserId);
+          await loadGoalData(db, newUserId);
+        } else {
+          // Đăng xuất: Xóa userId và tải lại dữ liệu
+          await removeUserIdFromGoals(db);
+          await loadGoalData(db, null);
+        }
+      }
+    };
+    if (isFocused) {
+      checkAuthAndReload();
+    }
+  }, [isFocused, db]);
+
+  useEffect(() => {
+    if (db && userId) {
+      const updateAndReloadGoals = async () => {
+        try {
+          await assignUserIdToOldGoals(db, userId);
+          await loadGoalData(db, userId); // Tải lại dữ liệu với userId mới
+        } catch (error) {
+          console.error('Error updating old goals with userId:', error);
+        }
+      };
+      updateAndReloadGoals();
+    }
+  }, [userId, db]);
+
   useEffect(() => {
     if (db) {
-      saveGoal(steps, distance, calories, activeTime); // Tự động lưu khi các giá trị thay đổi
+      saveGoal(steps, distance, calories, activeTime);
     }
-  }, [steps, distance, calories, activeTime]);
+  }, [steps, distance, calories, activeTime, db]);
 
   const increaseSteps = () => setSteps((prev) => Math.max(prev + 500, 0));
   const decreaseSteps = () => setSteps((prev) => Math.max(prev - 500, 0));
@@ -101,10 +194,8 @@ function Goal() {
   const increaseMinutes = () => setActiveTime((prev) => Math.max(prev + 30, 0));
   const decreaseMinutes = () => setActiveTime((prev) => Math.max(prev - 30, 0));
 
+  const onSelectSwitch = (value) => setGoalTab(value);
 
-  const onSelectSwitch = (value) => {
-    setGoalTab(value)
-  }
   return (
     <>
       <StatusBar
@@ -113,7 +204,7 @@ function Goal() {
         barStyle="dark-content"
       />
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <View style={{ alignItems: 'center' }} >
+        <View style={{ alignItems: 'center' }}>
           <SwitchGoal
             selectionMode={1}
             option1="Mục tiêu"
@@ -121,8 +212,7 @@ function Goal() {
             onSelectSwitch={onSelectSwitch}
           />
         </View>
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }}
-          showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
           {goalTab === 1 && (
             <View style={{ padding: 16 }}>
               <Text style={styles.header}>Mục tiêu</Text>
@@ -132,36 +222,25 @@ function Goal() {
                 <TouchableOpacity onPress={decreaseSteps} style={styles.iconButton}>
                   <Icon name="remove" size={20} color="#000" />
                 </TouchableOpacity>
-
                 <View style={styles.stepDisplay}>
                   <Text style={styles.stepText}>{steps.toLocaleString("vi-VN")}</Text>
                   <Text style={styles.stepUnit}>Bước</Text>
                 </View>
-
                 <TouchableOpacity onPress={increaseSteps} style={styles.iconButton}>
                   <Icon name="add" size={20} color="#000" />
                 </TouchableOpacity>
               </View>
 
-
-              <TouchableOpacity
-                style={styles.notification}
-                onPress={handleNotificationPress}
-              >
+              <TouchableOpacity style={styles.notification} onPress={handleNotificationPress}>
                 <Icon name="notifications" size={25} color="#007BFF" />
                 <Text style={styles.notificationText}>Thông báo</Text>
                 <Icon name="chevron-right" size={25} color="#6C757D" style={styles.arrowIcon} />
-
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.Spo2}
-                onPress={handleSpo2Press}
-              >
+              <TouchableOpacity style={styles.Spo2} onPress={handleSpo2Press}>
                 <Icon name="favorite" size={25} color="#007BFF" />
                 <Text style={styles.notificationText}>SPO2</Text>
                 <Icon name="chevron-right" size={25} color="#6C757D" style={styles.arrowIcon} />
-
               </TouchableOpacity>
 
               <View style={styles.moreGoalsContainer}>
@@ -181,12 +260,10 @@ function Goal() {
                       <TouchableOpacity onPress={decreaseCalo} style={styles.iconButton}>
                         <Icon name="remove" size={20} color="#000" />
                       </TouchableOpacity>
-
                       <View style={styles.stepDisplay}>
                         <Text style={styles.stepText}>{calories.toLocaleString("vi-VN")}</Text>
                         <Text style={styles.stepUnit}>Kcal</Text>
                       </View>
-
                       <TouchableOpacity onPress={increaseCalo} style={styles.iconButton}>
                         <Icon name="add" size={20} color="#000" />
                       </TouchableOpacity>
@@ -196,12 +273,10 @@ function Goal() {
                       <TouchableOpacity onPress={decreaseKilomet} style={styles.iconButton}>
                         <Icon name="remove" size={20} color="#000" />
                       </TouchableOpacity>
-
                       <View style={styles.stepDisplay}>
                         <Text style={styles.stepText}>{distance.toLocaleString("vi-VN")}</Text>
                         <Text style={styles.stepUnit}>Km</Text>
                       </View>
-
                       <TouchableOpacity onPress={increaseKilomet} style={styles.iconButton}>
                         <Icon name="add" size={20} color="#000" />
                       </TouchableOpacity>
@@ -211,12 +286,10 @@ function Goal() {
                       <TouchableOpacity onPress={decreaseMinutes} style={styles.iconButton}>
                         <Icon name="remove" size={20} color="#000" />
                       </TouchableOpacity>
-
                       <View style={styles.stepDisplay}>
                         <Text style={styles.stepText}>{activeTime.toLocaleString("vi-VN")}</Text>
                         <Text style={styles.stepUnit}>Phút</Text>
                       </View>
-
                       <TouchableOpacity onPress={increaseMinutes} style={styles.iconButton}>
                         <Icon name="add" size={20} color="#000" />
                       </TouchableOpacity>
@@ -224,15 +297,16 @@ function Goal() {
                   </View>
                 )}
               </View>
+              <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAllGoals}>
+                <Text style={styles.deleteButtonText}>Xóa toàn bộ mục tiêu</Text>
+              </TouchableOpacity>
             </View>
           )}
-
           {goalTab === 2 && <GoalWeight />}
-
         </ScrollView>
       </SafeAreaView>
     </>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -240,9 +314,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  // safeArea: {
-  //   paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  // },
   header: {
     fontSize: 26,
     fontWeight: "bold",
@@ -326,11 +397,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
   },
-  goalItem: {
-    fontSize: 16,
-    color: "#6C757D",
-    marginBottom: 8,
-  },
-})
+});
 
 export default Goal;
