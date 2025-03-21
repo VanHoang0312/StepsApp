@@ -4,14 +4,16 @@ import { LineChart, BarChart } from 'react-native-chart-kit';
 import { openDB } from "../../../Database/database";
 import { useNavigation } from '@react-navigation/native';
 import { loadLatestBodyFromSQLite } from "../../../Database/BodyDatabase";
+import { useAuth } from "../../helpers/AuthContext";
 
 
 function WeeklyActivity() {
   const [stepsData, setStepsData] = useState([0, 0, 0, 0, 0, 0, 0]);
   const [weekRange, setWeekRange] = useState("");
-  const [distance, setDistance] = useState(0); // Thêm state cho khoảng cách
-  const [calories, setCalories] = useState(0); // Thêm state cho calo
-  const [activeTime, setActiveTime] = useState(0); // Thêm state cho thời gian hoạt động
+  const [distance, setDistance] = useState(0);
+  const [calories, setCalories] = useState(0);
+  const [activeTime, setActiveTime] = useState(0);
+  const { userId } = useAuth()
   const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
   const navigation = useNavigation();
 
@@ -47,14 +49,15 @@ function WeeklyActivity() {
         return date.toISOString().split("T")[0];
       });
       console.log(daysOfWeek);
+
       try {
         const steps = await Promise.all(
           daysOfWeek.map(async (date) => {
             return new Promise((resolve, reject) => {
               db.transaction(tx => {
                 tx.executeSql(
-                  "SELECT SUM(steps) as totalSteps FROM activity WHERE day = ?",
-                  [date],
+                  "SELECT SUM(steps) as totalSteps FROM activity WHERE day = ? AND (userId = ? OR userId IS NULL)",
+                  [date, userId],
                   (_, { rows }) => {
                     resolve(rows.item(0).totalSteps || 0);
                   },
@@ -69,7 +72,7 @@ function WeeklyActivity() {
 
         const totalSteps = steps.reduce((a, b) => a + b, 0);
         // Lấy dữ liệu body gần nhất từ BodyDatabase
-        const bodyData = await loadLatestBodyFromSQLite(db, daysOfWeek[6]); // Dùng ngày cuối tuần để lấy dữ liệu gần nhất
+        const bodyData = await loadLatestBodyFromSQLite(db, userId, daysOfWeek[6]); // Dùng ngày cuối tuần để lấy dữ liệu gần nhất
         if (bodyData) {
           console.log("Dữ liệu body gần nhất:", bodyData);
           const { stepLength, weight } = bodyData;
@@ -96,7 +99,7 @@ function WeeklyActivity() {
     };
 
     fetchStepsData();
-  }, []);
+  }, [userId]);
 
 
   return (

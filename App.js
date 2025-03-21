@@ -6,7 +6,7 @@ import allReducer from './src/reducers/index'
 import { createStore } from 'redux';
 import { Provider } from 'react-redux';
 import { AuthProvider } from './src/helpers/AuthContext';
-//import SettingStack from './app/(tabs)/SettingStack';
+
 
 const store = createStore(allReducer)
 

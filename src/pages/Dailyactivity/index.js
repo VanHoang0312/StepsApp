@@ -127,7 +127,6 @@ const Dailyactivity = () => {
       lastSteps = result.steps;
     });
 
-    //return pedometerSubscription;
     setSubscription(pedometerSubscription);
   };
 
@@ -203,14 +202,6 @@ const Dailyactivity = () => {
         //await deleteAllActivityData(database);
         await fetchGoal(database);
         await subscribe(database);
-
-        // const savedData = await loadStepsFromSQLite(database, userId, today);
-        // if (savedData) {
-        //   setStepCount(savedData.steps);
-        //   setCalories(savedData.calories);
-        //   setDistance(savedData.distance);
-        //   setActiveTime(savedData.activeTime);
-        // }
       } catch (error) {
         console.error('Database initialization failed:', error);
       }
@@ -228,31 +219,6 @@ const Dailyactivity = () => {
     };
   }, []);
 
-  // Theo dõi bước chân khi db hoặc userId thay đổi
-  // useEffect(() => {
-  //   if (!db) return;
-
-  //   const setupSubscription = async () => {
-  //     if (subscription) {
-  //       console.log("🔄 Hủy subscription cũ với userId:", userId);
-  //       subscription.remove();
-  //       setSubscription(null);
-  //     }
-  //     const newSubscription = await subscribe(db);
-  //     setSubscription(newSubscription);
-  //   };
-
-  //   setupSubscription();
-
-  //   return () => {
-  //     if (subscription) {
-  //       console.log("🔄 Hủy subscription khi unmount với userId:", userId);
-  //       subscription.remove();
-  //       setSubscription(null);
-  //     }
-  //   };
-  // }, [db, userId]);
-
   // Reload dữ liệu khi userId thay đổi (đăng nhập/đăng xuất)
   useEffect(() => {
     if (!db) return;
@@ -260,10 +226,16 @@ const Dailyactivity = () => {
     const reloadData = async () => {
       console.log("🔄 Reload dữ liệu với userId:", userId);
       if (userId) {
+        // Gán userId cho dữ liệu cũ khi đăng nhập
         await assignUserIdToOldData(db, userId);
+      } else {
+        // Đặt userId về NULL khi đăng xuất
+        await db.transaction(async (tx) => {
+          await tx.executeSql('UPDATE activity SET userId = NULL WHERE day = ?', [today]);
+        });
       }
+      // Tải lại dữ liệu sau khi cập nhật userId
       await fetchGoal(db);
-
       const savedData = await loadStepsFromSQLite(db, userId, today);
       console.log("✅ Dữ liệu đã lưu từ SQLite sau reload:", savedData);
       setStepCount(savedData.steps);
@@ -271,7 +243,6 @@ const Dailyactivity = () => {
       setDistance(savedData.distance);
       setActiveTime(savedData.activeTime);
     };
-
     reloadData();
   }, [db, userId]);
 
@@ -285,7 +256,7 @@ const Dailyactivity = () => {
       if (!db) return;
       console.log("🔄 Focus màn hình Dailyactivity với userId:", userId);
       fetchGoal(db);
-    }, [db, userId]) // Thêm userId vào dependency để reload khi userId thay đổi
+    }, [db, userId]) 
   );
 
   //Cập nhật vòng tròn tiến trình

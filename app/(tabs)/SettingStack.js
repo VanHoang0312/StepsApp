@@ -4,7 +4,6 @@ import Setting from '../../src/pages/Setting';
 import Login from '../../src/pages/Login';
 import Body from '../../src/pages/Body'
 import Register from '../../src/pages/register';
-import Gift from '../../src/pages/Result/gift';
 
 
 const Stack = createStackNavigator();

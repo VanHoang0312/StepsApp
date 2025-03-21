@@ -6,6 +6,7 @@ import { createBodyTable, loadBodyFromSQLite, loadLatestBodyFromSQLite, saveBody
 import { openDB } from "../../../Database/database";
 import { useAuth } from "../../helpers/AuthContext";
 
+
 function Body() {
   const [gender, setGender] = useState("male");
   const [bodysize, setBodysize] = useState(170);
@@ -14,6 +15,7 @@ function Body() {
   const [birthYear, setBirthYear] = useState(2000);
   const [db, setDb] = useState(null);
   const { userId } = useAuth()
+
 
   const today = new Date().toISOString().split('T')[0];
 
