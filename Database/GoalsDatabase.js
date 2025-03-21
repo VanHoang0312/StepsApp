@@ -66,8 +66,8 @@ export const loadGoalFromSQLite = (db, userId, day) => {
 
     db.transaction((tx) => {
       tx.executeSql(
-        `SELECT * FROM goals WHERE day = ?`, // Chỉ kiểm tra day
-        [day],
+        `SELECT * FROM goals WHERE day = ? AND (userId = ? OR userId IS NULL)`, // Chỉ kiểm tra day
+        [day, userId],
         (_, { rows }) => {
           if (rows.length > 0) {
             const goal = rows.item(0);
@@ -91,8 +91,8 @@ export const loadGoalFromSQLite = (db, userId, day) => {
 export const loadLatestGoalFromSQLite = async (db, userId, today) => {
   try {
     const result = await db.executeSql(
-      `SELECT * FROM goals WHERE day < ? ORDER BY day DESC LIMIT 1`, // Chỉ kiểm tra day
-      [today]
+      `SELECT * FROM goals WHERE day < ? AND (userId = ? OR userId IS NULL) ORDER BY day DESC LIMIT 1`, // Chỉ kiểm tra day
+      [today, userId]
     );
     return result[0].rows.length > 0 ? result[0].rows.item(0) : null;
   } catch (error) {
@@ -157,5 +157,5 @@ export const deleteAllGoals = async (db) => {
 export {
   createGoalsTable,
   getAllGoalsData,
-  assignUserIdToOldGoals, // Thêm hàm mới
+  assignUserIdToOldGoals, 
 };

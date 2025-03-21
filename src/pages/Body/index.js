@@ -2,10 +2,9 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, SafeAreaView, ScrollView } from "react-native";
 import { Button, Divider, TextInput } from "react-native-paper";
 import { Picker } from "@react-native-picker/picker";
-import { createBodyTable, loadBodyFromSQLite, loadLatestBodyFromSQLite, saveBodyToSQLite, assignUserIdToOldBody } from "../../../Database/BodyDatabase";
+import { createBodyTable, loadBodyFromSQLite, loadLatestBodyFromSQLite, saveBodyToSQLite, assignUserIdToOldBody, deleteAllBody } from "../../../Database/BodyDatabase";
 import { openDB } from "../../../Database/database";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getCurrentData } from '../../services/userService';
+import { useAuth } from "../../helpers/AuthContext";
 
 function Body() {
   const [gender, setGender] = useState("male");
@@ -14,30 +13,9 @@ function Body() {
   const [weight, setWeight] = useState(60);
   const [birthYear, setBirthYear] = useState(2000);
   const [db, setDb] = useState(null);
-  const [userId, setUserId] = useState(null); 
+  const { userId } = useAuth()
 
   const today = new Date().toISOString().split('T')[0];
-
-  // Lấy userId từ AsyncStorage hoặc API
-  const getUserId = async () => {
-    try {
-      const token = await AsyncStorage.getItem("token");
-      if (token) {
-        const response = await getCurrentData(token);
-        if (response && response.message && response.message._id) {
-          const newUserId = response.message._id; 
-          console.log("✅ UserId body lấy từ API:", newUserId);
-          setUserId(newUserId);
-          return newUserId;
-        }
-      }
-      console.log("⚠️ Không tìm thấy userId");
-      return null;
-    } catch (error) {
-      console.error("❌ Lỗi khi lấy userId:", error);
-      return null;
-    }
-  };
 
   const loadBodyData = async (database, currentUserId) => {
     // Tải dữ liệu body hôm nay
@@ -66,38 +44,37 @@ function Body() {
     }
   }
 
-  // Hàm xóa userId khỏi database khi đăng xuất
-  const removeUserIdFromBody = async (database) => {
-    try {
-      await database.transaction(async (tx) => {
-        await tx.executeSql(
-          'UPDATE body SET userId = NULL WHERE day = ?',
-          [today],
-          () => console.log(`Removed userId from body for ${today}`),
-          (_, error) => console.error('Error removing userId:', error)
-        );
-      });
-    } catch (error) {
-      console.error('Error removing userId from body:', error);
-    }
-  };
-
-
   useEffect(() => {
     const initDB = async () => {
       try {
         const database = await openDB();
         setDb(database);
         await createBodyTable(database);
-        const currentUserId = await getUserId(); // Lấy userId khi khởi động
-        setUserId(currentUserId)
-        await loadBodyData(database, currentUserId)
+        await loadBodyData(database, userId)
+        //await deleteAllBody(database)
       } catch (error) {
         console.error('initDB failed:', error);
       }
     };
     initDB();
   }, []);
+
+  // Lắng nghe thay đổi userId để reload dữ liệu
+  useEffect(() => {
+    if (db) {
+      const reloadData = async () => {
+        if (userId) {
+          await assignUserIdToOldBody(db, userId);
+        } else {
+          await db.transaction(async (tx) => {
+            await tx.executeSql('UPDATE body SET userId = NULL WHERE day = ?', [today]);
+          });
+        }
+        await loadBodyData(db, userId);
+      };
+      reloadData();
+    }
+  }, [userId, db]);
 
   const handleSave = () => {
     if (db) {

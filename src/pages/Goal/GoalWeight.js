@@ -3,13 +3,14 @@ import { Text, StyleSheet, View, SafeAreaView, ScrollView, TouchableOpacity } fr
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { openDB } from "../../../Database/database";
 import { loadBodyFromSQLite } from "../../../Database/BodyDatabase";
+import { useAuth } from "../../helpers/AuthContext";
 
 
 function GoalWeight() {
   const [weight, setWeight] = useState(0);
   const [bodysize, setBodysize] = useState(0)
   const [db, setDb] = useState()
-
+  const { userId } = useAuth();
   const today = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
@@ -18,14 +19,14 @@ function GoalWeight() {
         const database = await openDB()
         setDb(database)
         const loadWeight = await loadBodyFromSQLite(database, userId, today)
-        setWeight(loadWeight.weight);
-        setBodysize(loadWeight.bodysize)
+        setWeight(loadWeight.weight || 0);
+        setBodysize(loadWeight.bodysize || 0)
       } catch (error) {
         console.error('initDB failed:', error);
       }
     }
     initDB()
-  }, [])
+  }, [userId])
 
 
   const increaseSteps = () => setWeight((prev) => Math.max(prev + 1, 0));

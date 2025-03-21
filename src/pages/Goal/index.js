@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Button, View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Switch } from 'react-native';
 import SwitchGoal from '../../component/SwitchGoal';
 import GoalWeight from './GoalWeight';
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { openDB } from '../../../Database/database';
 import { saveGoalToSQLite, loadGoalFromSQLite, createGoalsTable, loadLatestGoalFromSQLite, assignUserIdToOldGoals, deleteAllGoals } from '../../../Database/GoalsDatabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getCurrentData } from '../../services/userService';
+import { useAuth } from '../../helpers/AuthContext';
 
 function Goal() {
   const [goalTab, setGoalTab] = useState(1);
@@ -18,53 +17,32 @@ function Goal() {
   const [activeTime, setActiveTime] = useState(30);
   const [isEnabled, setIsEnabled] = useState(false);
   const [db, setDb] = useState(null);
-  const [userId, setUserId] = useState(null);
+  const { userId } = useAuth();
 
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const navigation = useNavigation();
-  const isFocused = useIsFocused(); // Kiểm tra khi màn hình được focus
+ 
 
   const handleNotificationPress = () => navigation.navigate('Thông báo');
   const handleSpo2Press = () => navigation.navigate('SPO2');
 
   const today = new Date().toISOString().split('T')[0];
 
-  // Lấy userId từ AsyncStorage hoặc API
-  const getUserId = async () => {
-    try {
-      const token = await AsyncStorage.getItem("token");
-      if (token) {
-        const response = await getCurrentData(token);
-        if (response && response.message && response.message._id) {
-          const newUserId = response.message._id;
-          console.log("✅ UserId goal lấy từ API:", newUserId);
-          setUserId(newUserId);
-          return newUserId;
-        }
-      }
-      console.log("⚠️ Không tìm thấy userId");
-      return null;
-    } catch (error) {
-      console.error("❌ Lỗi khi lấy userId:", error);
-      return null;
-    }
-  };
-
   // Hàm xóa toàn bộ dữ liệu
-  const handleDeleteAllGoals = async () => {
-    try {
-      if (db) {
-        await deleteAllGoals(db);
-        // Reset state về giá trị mặc định sau khi xóa
-        setSteps(6000);
-        setCalories(200);
-        setDistance(3);
-        setActiveTime(30);
-      }
-    } catch (error) {
-      console.error('Error deleting all goals:', error);
-    }
-  };
+  // const handleDeleteAllGoals = async () => {
+  //   try {
+  //     if (db) {
+  //       await deleteAllGoals(db);
+  //       // Reset state về giá trị mặc định sau khi xóa
+  //       setSteps(6000);
+  //       setCalories(200);
+  //       setDistance(3);
+  //       setActiveTime(30);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error deleting all goals:', error);
+  //   }
+  // };
 
   // Hàm lưu mục tiêu với userId
   const saveGoal = async (updatedSteps, updatedDistance, updatedCalories, updatedActiveTime) => {
@@ -74,8 +52,8 @@ function Goal() {
         console.error('Database not initialized!');
         return;
       }
-      const currentUserId = userId; // Dùng null nếu chưa đăng nhập
-      await saveGoalToSQLite(database, currentUserId, today, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
+
+      await saveGoalToSQLite(database, userId, today, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
     } catch (error) {
       console.error('Error saving goal:', error);
     }
@@ -102,23 +80,6 @@ function Goal() {
     }
   };
 
-  // Hàm xóa userId khỏi database khi đăng xuất
-  const removeUserIdFromGoals = async (database) => {
-    try {
-      await database.transaction(async (tx) => {
-        await tx.executeSql(
-          'UPDATE goals SET userId = NULL WHERE day = ?',
-          [today],
-          () => console.log(`Removed userId from goals for ${today}`),
-          (_, error) => console.error('Error removing userId:', error)
-        );
-      });
-    } catch (error) {
-      console.error('Error removing userId from goals:', error);
-    }
-  };
-
-  // Khởi tạo database và lắng nghe thay đổi token
   // Khởi tạo database
   useEffect(() => {
     const initDB = async () => {
@@ -126,53 +87,28 @@ function Goal() {
         const database = await openDB();
         setDb(database);
         await createGoalsTable(database);
-        const currentUserId = await getUserId();
-        setUserId(currentUserId);
-        await loadGoalData(database, currentUserId);
+        await loadGoalData(database, userId);
       } catch (error) {
         console.error('initDB failed:', error);
       }
     };
-
     initDB();
   }, []);
 
-  // Kiểm tra auth và reload dữ liệu khi màn hình được focus
+  // Lắng nghe thay đổi userId để reload dữ liệu
   useEffect(() => {
-    const checkAuthAndReload = async () => {
-      if (!db) return;
-      const token = await AsyncStorage.getItem("token");
-      const newUserId = token ? await getUserId() : null;
-
-      if (newUserId !== userId) { // Nếu trạng thái auth thay đổi
-        setUserId(newUserId);
-        if (newUserId) {
-          // Đăng nhập: Gắn userId và tải lại dữ liệu
-          await assignUserIdToOldGoals(db, newUserId);
-          await loadGoalData(db, newUserId);
-        } else {
-          // Đăng xuất: Xóa userId và tải lại dữ liệu
-          await removeUserIdFromGoals(db);
-          await loadGoalData(db, null);
-        }
-      }
-    };
-    if (isFocused) {
-      checkAuthAndReload();
-    }
-  }, [isFocused, db]);
-
-  useEffect(() => {
-    if (db && userId) {
-      const updateAndReloadGoals = async () => {
-        try {
+    if (db) {
+      const reloadData = async () => {
+        if (userId) {
           await assignUserIdToOldGoals(db, userId);
-          await loadGoalData(db, userId); // Tải lại dữ liệu với userId mới
-        } catch (error) {
-          console.error('Error updating old goals with userId:', error);
+        } else {
+          await db.transaction(async (tx) => {
+            await tx.executeSql('UPDATE goals SET userId = NULL WHERE day = ?', [today]);
+          });
         }
+        await loadGoalData(db, userId);
       };
-      updateAndReloadGoals();
+      reloadData();
     }
   }, [userId, db]);
 
@@ -297,9 +233,9 @@ function Goal() {
                   </View>
                 )}
               </View>
-              <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAllGoals}>
+              {/* <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAllGoals}>
                 <Text style={styles.deleteButtonText}>Xóa toàn bộ mục tiêu</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
           )}
           {goalTab === 2 && <GoalWeight />}

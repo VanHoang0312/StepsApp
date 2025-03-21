@@ -10,7 +10,7 @@ const createBodyTable = async (db) => {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           userId TEXT,                
           gender TEXT,
-          day TEXT,
+          day TEXT UNIQUE,
           bodysize REAL,
           stepLength REAL,
           weight REAL,
@@ -37,7 +37,7 @@ const saveBodyToSQLite = async (db, userId, day, gender, bodysize, stepLength, w
       await db.executeSql(
         `UPDATE body SET gender = ?, bodysize = ?, stepLength = ?, weight = ?, birthYear = ?,  userId = ?
          WHERE day = ? `,
-        [gender, bodysize, stepLength, weight, birthYear,userId, day ]
+        [gender, bodysize, stepLength, weight, birthYear, userId, day]
       );
       console.log(`Body for ${day} updated for userId: ${userId}`);
     } else {
@@ -64,8 +64,8 @@ const loadBodyFromSQLite = (db, userId, day) => {
 
     db.transaction((tx) => {
       tx.executeSql(
-        `SELECT * FROM body WHERE day = ?`,
-        [day],
+        `SELECT * FROM body WHERE day = ? AND (userId = ? OR userId IS NULL)`,
+        [day, userId],
         (_, { rows }) => {
           if (rows.length > 0) {
             const body = rows.item(0);
@@ -89,8 +89,8 @@ const loadBodyFromSQLite = (db, userId, day) => {
 const loadLatestBodyFromSQLite = async (db, userId, today) => {
   try {
     const result = await db.executeSql(
-      `SELECT * FROM body WHERE day <  ? ORDER BY day DESC LIMIT 1`,
-      [today]
+      `SELECT * FROM body WHERE day <  ? AND (userId = ? OR userId IS NULL) ORDER BY day DESC LIMIT 1`,
+      [today, userId]
     );
     return result[0].rows.length > 0 ? result[0].rows.item(0) : null;
   } catch (error) {
@@ -142,17 +142,15 @@ const assignUserIdToOldBody = async (db, userId) => {
   }
 };
 
-// Xóa bảng body (nếu cần, tôi để lại nhưng comment như bạn đã làm)
-// const dropBodyTable = async (db) => {
-//   try {
-//     await db.transaction(async (tx) => {
-//       await tx.executeSql('DROP TABLE IF EXISTS body');
-//     });
-//     console.log('Body table dropped successfully');
-//   } catch (error) {
-//     console.error('Error dropping body table:', error);
-//   }
-// };
+export const deleteAllBody = async (db) => {
+  try {
+    await db.executeSql('DELETE FROM body');
+    console.log('✅ Đã xóa toàn bộ dữ liệu trong bảng body');
+  } catch (error) {
+    console.error('❌ Lỗi khi xóa dữ liệu trong bảng goals:', error);
+    throw error;
+  }
+};
 
 export {
   createBodyTable,
@@ -160,6 +158,5 @@ export {
   loadBodyFromSQLite,
   loadLatestBodyFromSQLite,
   getAllbodyData,
-  assignUserIdToOldBody, // Thêm hàm mới
-  // dropBodyTable
+  assignUserIdToOldBody, 
 };

@@ -5,7 +5,6 @@ import { useNavigation } from '@react-navigation/native';
 import * as user from "../../services/userService";
 import { useDispatch } from "react-redux";
 import { checkLogin } from "../../action/login"
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from '../../helpers/AuthContext';
 
 
@@ -27,9 +26,8 @@ const Login = () => {
     try {
       const result = await user.login({ name, email, password });
       console.log("hh", result)
-      if (result) {
-        await AsyncStorage.setItem("token", result?.token); // Lưu userId vào AsyncStorage
-        console.log("Token:", result?.token)
+      if (result && result.token) {
+        await login(result.token);
         dispatch(checkLogin(true));
 
         Alert.alert("Thành công", "Đăng nhập thành công!", [

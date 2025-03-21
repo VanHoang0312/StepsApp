@@ -1,5 +1,5 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { StyleSheet, View, SafeAreaView, ScrollView, Switch, TouchableOpacity, Button } from "react-native";
 import { Avatar, Text, List, RadioButton } from 'react-native-paper';
 import { openDB } from "../../../Database/database";
@@ -10,6 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getCurrentData } from "../../services/userService";
 import { useDispatch } from "react-redux";
 import { checkLogin } from "../../action/login";
+import { useAuth } from "../../helpers/AuthContext";
 
 function Setting() {
   const [theme, setTheme] = useState('light');
@@ -18,6 +19,7 @@ function Setting() {
   const [userName, setUserName] = useState(null);
   const navigation = useNavigation()
   const dispatch = useDispatch()
+  const { logout } = useAuth()
 
 
   const handleLogData = async () => {
@@ -56,7 +58,7 @@ function Setting() {
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem("token"); // Xóa token đăng nhập
+      await logout();
       setUserName(null);
       dispatch(checkLogin(false))
     } catch (error) {
