@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Text, View, StyleSheet, SafeAreaView, FlatList, Image } from "react-native";
 import * as Progress from 'react-native-progress';
-import { useNavigation } from "@react-navigation/native";
 import { getGiftbyId } from "../../services/giftService";
 import { useAuth } from "../../helpers/AuthContext";
+import { openDB } from '../../../Database/database';
+import {
+  createTable,
+  loadStepsFromSQLite,
+} from '../../../Database/DailyDatabase';
+import {
+  createGoalsTable,
+  loadGoalFromSQLite,
+  loadLatestGoalFromSQLite,
+} from '../../../Database/GoalsDatabase';
+import { useFocusEffect } from "@react-navigation/native";
 
 const BASE_URL = "http://172.20.10.4:3002";
 
@@ -14,6 +24,7 @@ const BadgeItem = ({ item }) => (
         source={{ uri: `${BASE_URL}${item.icon.replace("app/public", "")}` }}
         style={styles.badgeImage}
         onError={(e) => console.log("Lỗi tải ảnh:", e.nativeEvent.error)}
+        tintColor={item.status ? "#FFD700" : "#A0A0A0"}
       />
     ) : (
       <Text>Không có ảnh</Text>
@@ -37,19 +48,71 @@ const BadgeItem = ({ item }) => (
 function Gift() {
   const [gifts, setGifts] = useState([]);
   const { userId, loading } = useAuth();
-  const navigation = useNavigation();
-  const [currentSteps, setCurrentSteps] = useState(2500); // Giả lập số bước hiện tại, thay bằng dữ liệu thực tế
+  const [currentSteps, setCurrentSteps] = useState(0);
+  const [userGoalSteps, setUserGoalSteps] = useState(0);
+  const [db, setDb] = useState(null);
 
+  // Khởi tạo database SQLite
+  useEffect(() => {
+    const initDB = async () => {
+      try {
+        const database = await openDB(); // Dùng openDB từ file của bạn
+        await createTable(database); // Tạo bảng activity
+        await createGoalsTable(database); // Tạo bảng goals
+        setDb(database);
+        console.log("Database initialized");
+      } catch (error) {
+        console.error("Error initializing database:", error);
+      }
+    };
+    initDB();
+  }, []);
+
+  // Load dữ liệu bước chân từ bảng activity
+  const loadSteps = async () => {
+    if (db && userId) {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const data = await loadStepsFromSQLite(db, userId, today);
+        setCurrentSteps(data.steps || 0);
+        console.log("Current steps loaded from SQLite:", data.steps);
+      } catch (error) {
+        console.error("Error loading steps:", error);
+      }
+    }
+  };
+
+  // Load mục tiêu từ bảng goals
+  const loadGoal = async () => {
+    if (db && userId) {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        let goal = await loadGoalFromSQLite(db, userId, today);
+        if (!goal) {
+          // Nếu không có mục tiêu hôm nay, lấy mục tiêu gần nhất
+          goal = await loadLatestGoalFromSQLite(db, userId, today);
+        }
+        const goalSteps = goal ? goal.steps : 6000; // Mặc định 5000 nếu không có mục tiêu
+        setUserGoalSteps(goalSteps);
+        console.log("User goal steps loaded from SQLite:", goalSteps);
+      } catch (error) {
+        console.error("Error loading goal:", error);
+      }
+    }
+  };
+
+  // Tính targetSteps dựa trên mục tiêu người dùng
   const getTargetSteps = (giftname) => {
     if (giftname.includes("5k Bước")) return 5000;
     if (giftname.includes("10k Bước")) return 10000;
     if (giftname.includes("20k Bước")) return 20000;
-    if (giftname.includes("Mục tiêu 200%")) return 10000; // Giả sử mục tiêu cơ bản là 5000
-    if (giftname.includes("Mục tiêu 300%")) return 15000;
-    if (giftname.includes("Đạt được mục tiêu")) return 5000;
+    if (giftname.includes("Mục tiêu 200%")) return userGoalSteps * 2;
+    if (giftname.includes("Mục tiêu 300%")) return userGoalSteps * 3;
+    if (giftname.includes("Đạt được mục tiêu")) return userGoalSteps;
     return 0;
   };
 
+  // Fetch dữ liệu phần thưởng từ API
   const fetchApi = async () => {
     try {
       if (userId) {
@@ -59,12 +122,14 @@ function Gift() {
           const formattedGifts = response.map(gift => {
             const targetSteps = getTargetSteps(gift.giftname);
             const progress = targetSteps > 0 ? Math.min(currentSteps / targetSteps, 1) : 0;
+            const status = currentSteps >= targetSteps;
             return {
               ...gift,
               giftname: gift.giftname || "Phần thưởng không tên",
-              icon: gift.icon || null, // Giữ nguyên đường dẫn
+              icon: gift.icon || null,
               targetSteps,
               progress,
+              status,
             };
           });
           setGifts(formattedGifts);
@@ -80,13 +145,30 @@ function Gift() {
     }
   };
 
+  // Load dữ liệu khi db, userId thay đổi
   useEffect(() => {
-    if (!loading) {
+    if (!loading && db) {
+      loadSteps();
+      loadGoal();
+    }
+  }, [userId, loading, db]);
+
+  // Cập nhật mục tiêu khi màn hình được focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!db) return;
+      loadGoal(db);
+    }, [db, userId])
+  );
+
+  // Fetch API khi currentSteps hoặc userGoalSteps thay đổi
+  useEffect(() => {
+    if (!loading && db) {
       fetchApi();
     }
-  }, [userId, loading, currentSteps]); // Thêm currentSteps để cập nhật khi bước thay đổi
+  }, [userId, loading, currentSteps, userGoalSteps, db]);
 
-  if (loading) {
+  if (loading || !db) {
     return (
       <SafeAreaView style={styles.container}>
         <Text>Đang tải...</Text>
@@ -143,7 +225,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     resizeMode: 'contain',
-    color: " #A0A0A0"
   },
   badgeText: {
     fontSize: 12,
@@ -157,7 +238,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   subtitle1: {
-    marginTop: 20,
+    marginTop: 50,
     color: "#909090",
     fontWeight: 'bold',
     marginLeft: 15,
