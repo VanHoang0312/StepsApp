@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Button, FlatList, PermissionsAndroid, Platform, Modal, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Button, FlatList, PermissionsAndroid, Platform, Modal, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { BleManager } from "react-native-ble-plx";
 import { ActivityIndicator } from "react-native";
-import base64 from "react-native-base64"
-import { encode as btoa } from "react-native-base64";
 import { Buffer } from "buffer";
+import RNFS from "react-native-fs";
+import { uploadFile, downloadFile } from "../../services/fileService";
 
 
 const manager = new BleManager();
+const filePath = `${RNFS.DocumentDirectoryPath}/data.txt`;
 
 function Spo2() {
   const [devices, setDevices] = useState([]);
@@ -16,11 +17,15 @@ function Spo2() {
   const [loading, setLoading] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [spo2Rate, setSpO2Rate] = useState(null)
-
-
+  const [pulseRate, setPulseRate] = useState(null);
+  const [perfusionIndex, setPerfusionIndex] = useState(null);
+  const [typeRecord, setTypeRecord] = useState(1);
 
   useEffect(() => {
     requestBluetoothPermission();
+    return () => {
+      onDestroyBLE();
+    };
   }, []);
 
   // Xin quyền BLE trên Android
@@ -46,6 +51,8 @@ function Spo2() {
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
           );
         }
+        permissions.push(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE);
+        permissions.push(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
 
         if (permissions.length === 0) return;
 
@@ -86,9 +93,10 @@ function Spo2() {
   };
 
   // Quét thiết bị BLE
-  const scanDevices = () => {
+  const scanDevices = (type = 1) => {
     setScanning(true);
     setDevices([]);
+    setTypeRecord(type);
     manager.startDeviceScan(null, null, (error, device) => {
       if (error) {
         console.log("Lỗi quét BLE:", error);
@@ -117,16 +125,25 @@ function Spo2() {
     try {
       setLoading(device.id);
       const deviceConnection = await manager.connectToDevice(device.id);
-      console.log("Đã kết nối với: ", device.id)
+      console.log("Đã kết nối với: ", device.id);
       setConnectedDevice(deviceConnection);
       await deviceConnection.discoverAllServicesAndCharacteristics();
       manager.stopDeviceScan();
 
-      await debugDeviceServices(device);
-      startMonitoringSpO2(device)
+      // Đăng ký sự kiện ngắt kết nối sau khi kết nối thành công
+      const subscription = manager.onDeviceDisconnected(deviceConnection.id, (err, disconnectedDevice) => {
+        console.log(disconnectedDevice.id, "onDeviceDisconnected");
+        Alert.alert("Thông báo", `Thiết bị ${disconnectedDevice.id} đã ngắt kết nối.`);
+        resetBlue();
+        subscription.remove(); // Hủy subscription ngay sau khi ngắt
+      });
+
+      await debugDeviceServices(deviceConnection);
+      startMonitoringSpO2(deviceConnection);
       setIsSpo2ModalVisible(true);
     } catch (error) {
       console.log("Lỗi kết nối:", error);
+      Alert.alert("Lỗi", `Không thể kết nối với thiết bị: ${error.message}`);
     } finally {
       setLoading(null);
     }
@@ -154,76 +171,184 @@ function Spo2() {
   };
 
   //Đọc dữ liệu SpO2
-  const SPO2_RATE_UUID = "f000ffc0-0451-4000-b000-000000000000";
-  const SPO2_RATE_CHARACTERISTIC = "f000ffc1-0451-4000-b000-000000000000";
-
   const startMonitoringSpO2 = async (device) => {
-    if (!device) {
-      console.log("Không có thiết bị kết nối!");
-      return;
-    }
-
+    if (!device) return;
     try {
       await device.discoverAllServicesAndCharacteristics();
 
-      // Gửi lệnh kích hoạt SpO2
-      const command = Buffer.from([0x01]).toString("base64");
-      console.log("kk", command)
+      const serviceUUID = "cdeacb80-5235-4c07-8846-93a37ee6b86d";
+      const charUUID = "cdeacb81-5235-4c07-8846-93a37ee6b86d";
 
-      await device.writeCharacteristicWithResponseForService(
-        SPO2_RATE_UUID,
-        SPO2_RATE_CHARACTERISTIC,
-        command
-      );
-      console.log("Đã gửi lệnh kích hoạt SpO2");
+      device.monitorCharacteristicForService(serviceUUID, charUUID, (error, char) => {
+        if (error) {
+          console.log(`Lỗi khi theo dõi ${charUUID}:`, error);
+          return;
+        }
+        if (char?.value) {
+          const hexString = Buffer.from(char.value, "base64").toString("hex");
+          const data = convertHexToDecimal(hexString);
 
-      // Theo dõi dữ liệu SpO2
-      setTimeout(async () => {
-        console.log("Bắt đầu theo dõi SpO2...");
-        await device.monitorCharacteristicForService(
-          SPO2_RATE_UUID,
-          SPO2_RATE_CHARACTERISTIC,
-          (error, char) => {
-            if (error) {
-              console.log("Lỗi khi theo dõi SpO2:", error);
-              return;
-            }
-            if (char?.value) {
-              const hexString = Buffer.from(char.value, "base64").toString("hex");
-              console.log("Dữ liệu gốc nhận được (hex):", hexString);
-              const data = convertHexToDecimal(hexString);
-              console.log("Dữ liệu đã chuyển đổi:", data);
-              setSpO2Rate(data[1]); // Lấy giá trị SpO2
+          if (data[0] === 129 && data.length >= 4) {
+            console.log(`Dữ liệu từ ${charUUID} (hex):`, hexString);
+            console.log(`Dữ liệu từ ${charUUID} (decimal):`, data);
+            setPulseRate(data[1]);       // Nhịp tim
+            setSpO2Rate(data[2]);        // SpO2
+            setPerfusionIndex(data[3] / 10);  // PI
+            if (typeRecord !== 1) {
+              processAndWriteFile(data); // Ghi dữ liệu nếu không phải chỉ đọc
             }
           }
-        );
-      }, 2000); // Chờ 2 giây trước khi theo dõi
-
+        }
+      });
+      console.log(`Đã bắt đầu theo dõi SpO2 trên ${charUUID}`);
     } catch (error) {
       console.log("Lỗi khi theo dõi SpO2:", error);
     }
   };
 
-  //Ngắt kết nối với thiết bị
-  const disconnectDevice = async () => {
-    if (connectedDevice) {
-      try {
-        await manager.cancelDeviceConnection(connectedDevice.id);
-        console.log("Đã ngắt kết nối với:", connectedDevice.id);
-      } catch (error) {
-        console.log("Lỗi khi ngắt kết nối:", error);
-      } finally {
-        setConnectedDevice(null);
-        setSpO2Rate(0);
-        setIsSpo2ModalVisible(false);
-      }
+  // Xử lý và ghi dữ liệu vào file
+  const processAndWriteFile = async (data) => {
+    const oxiData = {
+      heart_rate: data[1],
+      spo2: data[2],
+      pi: data[3] / 10,
+      time: new Date().toISOString(),
+    };
+
+    if (
+      oxiData.spo2 !== 127 &&
+      oxiData.heart_rate !== 255 &&
+      oxiData.pi !== 0
+    ) {
+      await writeFile(oxiData);
     }
   };
 
+  const writeFile = async (data) => {
+    try {
+      let url = null;
+      let fileNm = null;
+      if (typeRecord === 2) {
+        url = filePath;
+        fileNm = "data.txt";
+      } else if (typeRecord === 3) {
+        const now = new Date(); // Thời gian thực của thiết bị
+        const fileNm = `/${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}.txt`;
+        url = `${RNFS.DocumentDirectoryPath}${fileNm}`;
+      }
+
+      if (url) {
+        await RNFS.appendFile(url, JSON.stringify(data) + "\n", "utf8");
+        //await RNFS.writeFile(url, JSON.stringify(data), "utf8"); // Ghi đè file thay vì append
+        console.log("Đã ghi dữ liệu vào:", url);
+
+        if (typeRecord === 3 && new Date().getSeconds() === 59) {
+          const now = new Date();
+          const fileNm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}.txt`;
+          Alert.alert("Thông báo", `File ${fileNm} đã được ghi xong.`);
+          await uploadToServer(url, fileNm);
+        }
+      }
+    } catch (error) {
+      console.log("Lỗi khi ghi file:", error);
+      Alert.alert("Lỗi", `Không thể ghi file: ${error.message}`);
+    }
+  };
+
+  // Upload file lên server và tải PDF về
+  const uploadToServer = async (fileUri, fileNm) => {
+    try {
+      const uploadResult = await uploadFile(fileUri, fileNm);
+      if (uploadResult.success) {
+        console.log("Upload success:", uploadResult);
+        await RNFS.unlink(fileUri); // Xóa file sau khi upload
+
+        const oximeter_id = uploadResult.oximeter_id;
+        const downloadResult = await downloadFile(oximeter_id);
+        if (downloadResult.success) {
+          console.log("Download success:", downloadResult);
+          Alert.alert("Thành công", `File PDF đã được tải về tại: ${downloadResult.filePath}`);
+
+        }
+      } else {
+        Alert.alert("Lỗi", "Upload file thất bại");
+      }
+    } catch (error) {
+      console.error("Error in uploadToServer:", error);
+      Alert.alert("Lỗi", `Không thể upload file: ${error.message}`);
+    }
+  };
+
+  // Đọc tất cả file .txt trong thư mục Downloads
+  //  const readFile = async () => {
+  //   try {
+  //     let result = await RNFS.readDir(RNFS.DocumentDirectoryPath);
+  //     const txtFiles = result.filter((curr) => curr.isFile() && curr.name.split(".").pop() === "txt");
+  //     const contents = await Promise.all(
+  //       txtFiles.map(async (file) => {
+  //         const content = await RNFS.readFile(file.path, "utf8");
+  //         return `File: ${file.name}\nNội dung:\n${content}\n\n`;
+  //       })
+  //     );
+  //     const txtFilesContent = contents.join("");
+  //     if (txtFilesContent) {
+  //       setFileContent(txtFilesContent); // Lưu nội dung để hiển thị trong ScrollView
+  //     } else {
+  //       setFileContent("Không tìm thấy file .txt nào trong Downloads.");
+  //     }
+  //   } catch (error) {
+  //     console.log("Lỗi khi đọc thư mục:", error);
+  //     setFileContent(`Lỗi: Không thể đọc thư mục - ${error.message}`);
+  //   }
+  // };
+
+  // Ngắt kết nối và hủy BLE
+  const onDestroyBLE = async () => {
+    try {
+      await manager.stopDeviceScan();
+      if (connectedDevice) {
+        await manager.cancelDeviceConnection(connectedDevice.id);
+      }
+      // Upload file khi dừng nếu typeRecord = 2
+      if (typeRecord === 2 && (await RNFS.exists(filePath))) {
+        await uploadToServer(filePath, "data.txt");
+      }
+      resetBlue();
+    } catch (err) {
+      console.log("Lỗi khi hủy BLE:", err);
+    }
+  };
+
+  const resetBlue = () => {
+    setConnectedDevice(null);
+    setSpO2Rate(null);
+    setPulseRate(null);
+    setPerfusionIndex(null);
+    setIsSpo2ModalVisible(false);
+    setTypeRecord(1);
+    setDevices([]);
+  };
+
+  // Chọn loại quét
+  const showScanOptions = () => {
+    Alert.alert(
+      "Quét dữ liệu",
+      "Vui lòng chọn loại quét dữ liệu",
+      [
+        { text: "Chỉ đọc dữ liệu", onPress: () => scanDevices(1), style: "cancel" },
+        { text: "Đọc và ghi dữ liệu", onPress: () => scanDevices(2) },
+        { text: "Theo dõi SPO2", onPress: () => scanDevices(3) },
+      ]
+    );
+  };
 
   return (
     <View>
-      <Button title={scanning ? "Đang quét..." : "Quét thiết bị SpO2"} onPress={scanDevices} disabled={scanning} />
+      <Button
+        title={scanning ? "Đang quét..." : "Quét thiết bị SpO2"}
+        onPress={showScanOptions}
+        disabled={scanning || connectedDevice !== null}
+      />
       {scanning && <ActivityIndicator size="large" color="blue" style={{ marginTop: 50 }} />}
       <FlatList
         data={devices}
@@ -231,7 +356,11 @@ function Spo2() {
         renderItem={({ item }) => (
           <View style={{ padding: 10, borderBottomWidth: 1 }}>
             <Text>{item.name} ({item.id})</Text>
-            <Button title={loading === item.id ? "Đang kết nối..." : "Kết nối"} onPress={() => connectToDevice(item)} disabled={loading === item.id} />
+            <Button
+              title={loading === item.id ? "Đang kết nối..." : "Kết nối"}
+              onPress={() => connectToDevice(item)}
+              disabled={loading === item.id}
+            />
           </View>
         )}
       />
@@ -244,19 +373,28 @@ function Spo2() {
             {connectedDevice && (
               <Text>{connectedDevice.name} ({connectedDevice.id})</Text>
             )}
-            <Text>SpO2: {spo2Rate} %</Text>
-            {/* <TouchableOpacity style={styles.exit}>
-              <Text style={{ color: "white" }}>Lưu file</Text>
-            </TouchableOpacity> */}
-            <TouchableOpacity style={styles.exit} onPress={disconnectDevice}>
-              <Text style={{ color: "white" }}>Ngắt kết nối</Text>
+            <Text>SpO2: {spo2Rate !== null ? `${spo2Rate} %` : "Đang chờ dữ liệu..."}</Text>
+            <Text>Nhịp tim: {pulseRate !== null ? `${pulseRate} bpm` : "Đang chờ dữ liệu..."}</Text>
+            <Text>PI: {perfusionIndex !== null ? `${perfusionIndex.toFixed(1)} %` : "Đang chờ dữ liệu..."}</Text>
+            {/* Nút đọc tất cả file .txt */}
+            {/* <TouchableOpacity style={styles.saveButton} onPress={readFile}>
+              <Text style={{ color: "white" }}>Đọc tất cả file</Text>
+            </TouchableOpacity>
+            
+            <ScrollView style={styles.scrollView}>
+              <Text style={styles.fileContent}>{fileContent || "Nhấn nút để đọc file..."}</Text>
+            </ScrollView> */}
+            <TouchableOpacity style={styles.exit} onPress={onDestroyBLE}>
+              <Text style={{ color: "white" }}>
+                {typeRecord !== 1 ? "Dừng và lưu dữ liệu" : "Dừng đọc dữ liệu"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   modalview: {
@@ -270,7 +408,24 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "white",
     borderRadius: 10,
-    alignItems: "center"
+    alignItems: "center",
+    maxHeight: "80%"
+  },
+  scrollView: {
+    marginTop: 10,
+    maxHeight: 200, // Giới hạn chiều cao ScrollView để cuộn được
+    width: "100%"
+  },
+  fileContent: {
+    fontSize: 14,
+    color: "black",
+    textAlign: "left"
+  },
+  saveButton: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: "green",
+    borderRadius: 5
   },
   exit: {
     marginTop: 20,

@@ -65,9 +65,8 @@ const Dailyactivity = () => {
     } else {
       const now = Date.now();
       console.log("⏱️ Thời gian kể từ lần lưu cuối: ", now - lastSavedTime);
-      // Tạm thời bỏ điều kiện thời gian để luôn lưu
       setLastSavedTime(now);
-      console.log("💾 Đang lưu dữ liệu vào SQLite...");
+      console.log("💾 Đang lưu dữ liệu vào SQLite với userId", userId);
       await saveStepsToSQLite(database, userId, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
     }
   };
@@ -242,6 +241,10 @@ const Dailyactivity = () => {
       setCalories(savedData.calories);
       setDistance(savedData.distance);
       setActiveTime(savedData.activeTime);
+      if (subscription) {
+        subscription.remove();
+      }
+      await subscribe(db);
     };
     reloadData();
   }, [db, userId]);
@@ -256,7 +259,7 @@ const Dailyactivity = () => {
       if (!db) return;
       console.log("🔄 Focus màn hình Dailyactivity với userId:", userId);
       fetchGoal(db);
-    }, [db, userId]) 
+    }, [db, userId])
   );
 
   //Cập nhật vòng tròn tiến trình

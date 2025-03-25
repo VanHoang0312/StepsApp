@@ -3,7 +3,6 @@ import { View, Text, SafeAreaView, ScrollView, StyleSheet, Dimensions, Touchable
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { openDB } from "../../../Database/database";
 import { useNavigation } from '@react-navigation/native';
-import { loadLatestBodyFromSQLite } from "../../../Database/BodyDatabase";
 import { useAuth } from "../../helpers/AuthContext";
 
 
@@ -21,78 +20,67 @@ function WeeklyActivity() {
     const fetchStepsData = async () => {
       const db = await openDB();
       const today = new Date();
-      // Tính toán ngày đầu tuần (Thứ Hai) và ngày cuối tuần (Chủ Nhật)
+
+      // Tính ngày đầu tuần (Thứ Hai của tuần hiện tại)
       const firstDayOfWeek = new Date(today);
-      firstDayOfWeek.setDate(today.getDate() - today.getDay() + 1); // Tính ngày Thứ Hai
+      firstDayOfWeek.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
 
       const lastDayOfWeek = new Date(today);
-      lastDayOfWeek.setDate(today.getDate() - today.getDay() + 7); // Tính ngày Chủ Nhật
-
+      lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
       // Định dạng ngày
       const formatDate = (date, includeYear = true) => {
         const day = date.getDate();
         const month = date.toLocaleString('default', { month: 'short' });
         const year = date.getFullYear();
-
-        if (includeYear) {
-          return `${day} ${month}, ${year}`;
-        } else {
-          return `${day}`;
-        }
+        return includeYear ? `${day} ${month}, ${year}` : `${day}`;
       };
       setWeekRange(`${formatDate(firstDayOfWeek, false)} - ${formatDate(lastDayOfWeek)}`);
 
-      // Lấy các ngày trong tuần
+      // Lấy các ngày trong tuần hiện tại
       const daysOfWeek = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date(today);
-        date.setDate(today.getDate() - today.getDay() + i + 1); // Lấy ngày từ thứ 2 - CN
+        const date = new Date(firstDayOfWeek);
+        date.setDate(firstDayOfWeek.getDate() + i); // Từ Thứ Hai đến Chủ Nhật
         return date.toISOString().split("T")[0];
       });
       console.log(daysOfWeek);
 
       try {
-        const steps = await Promise.all(
+        const weeklyData = await Promise.all(
           daysOfWeek.map(async (date) => {
             return new Promise((resolve, reject) => {
               db.transaction(tx => {
                 tx.executeSql(
-                  "SELECT SUM(steps) as totalSteps FROM activity WHERE day = ? AND (userId = ? OR userId IS NULL)",
+                  "SELECT SUM(steps) as totalSteps, SUM(calories) as totalCalories, SUM(activeTime) as totalActiveTime, SUM(distance) as totalDistance FROM activity WHERE day = ? AND (userId = ? OR userId IS NULL)",
                   [date, userId],
-                  (_, { rows }) => {
-                    resolve(rows.item(0).totalSteps || 0);
-                  },
+                  (_, { rows }) => resolve({
+                    steps: rows.item(0).totalSteps || 0,
+                    calories: rows.item(0).totalCalories || 0,
+                    activeTime: rows.item(0).totalActiveTime || 0,
+                    distance: rows.item(0).totalDistance || 0
+                  }),
                   (_, error) => reject(error)
                 );
               });
             });
           })
         );
-
+        const steps = weeklyData.map(data => data.steps);
         setStepsData(steps);
 
         const totalSteps = steps.reduce((a, b) => a + b, 0);
-        // Lấy dữ liệu body gần nhất từ BodyDatabase
-        const bodyData = await loadLatestBodyFromSQLite(db, userId, daysOfWeek[6]); // Dùng ngày cuối tuần để lấy dữ liệu gần nhất
-        if (bodyData) {
-          console.log("Dữ liệu body gần nhất:", bodyData);
-          const { stepLength, weight } = bodyData;
+        const totalCalories = weeklyData.reduce((a, b) => a + b.calories, 0).toFixed(2);
+        const totalActiveTime = weeklyData.reduce((a, b) => a + b.activeTime, 0);
+        const totalDistance = weeklyData.reduce((a, b) => a + b.distance, 0).toFixed(2);
 
-          // Tính toán chính xác
-          const calculatedDistance = ((totalSteps * stepLength) / 100000).toFixed(2); // km
-          const calculatedCalories = (calculatedDistance * weight * 0.75).toFixed(2); // kcal
-          const calculatedActiveTime = Math.floor(totalSteps / 100); // phút
-
-          setDistance(calculatedDistance);
-          setCalories(calculatedCalories);
-          setActiveTime(calculatedActiveTime);
-        } else {
-          console.warn("Không tìm thấy dữ liệu body, dùng giá trị mặc định");
-          // Dùng công thức mặc định nếu không có body data
+        setDistance(totalDistance);
+        setCalories(totalCalories);
+        setActiveTime(totalActiveTime);
+        if (totalSteps === 0) {
+          console.warn("Không có dữ liệu hoạt động, dùng giá trị mặc định");
           setDistance((totalSteps / 1300).toFixed(2));
           setCalories((totalSteps / 1300 * 60).toFixed(2));
           setActiveTime(Math.floor(totalSteps / 80));
         }
-
       } catch (error) {
         console.error("Lỗi lấy dữ liệu bước chân:", error);
       }
