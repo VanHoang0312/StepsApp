@@ -6,6 +6,7 @@ import { createTable, loadStepsFromSQLite, getAllActivityData } from "../../../D
 import StepComparisonChart from '../../component/ChartResult'
 import SwitchResult from "../../component/SwitchResult";
 import Gift from "./gift";
+import { useAuth } from "../../helpers/AuthContext";
 
 function Result() {
   const [giftTab, setGiftTab] = useState(1)
@@ -13,6 +14,7 @@ function Result() {
   const [data, setData] = useState();
   const [alldata, setAlldata] = useState();
   const [db, setDb] = useState();
+  const { userId } = useAuth()
 
 
   const today = new Date().toISOString().split('T')[0];
@@ -23,7 +25,7 @@ function Result() {
         const Database = await openDB()
         setDb(Database)
         await createTable(Database)
-        const loadData = await loadStepsFromSQLite(Database, today)
+        const loadData = await loadStepsFromSQLite(Database, userId, today)
         if (loadData) {
           setData(loadData.steps)
         }

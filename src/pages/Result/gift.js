@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Text, View, StyleSheet, SafeAreaView, FlatList, Image } from "react-native";
+import { Text, View, StyleSheet, SafeAreaView, FlatList, Image, TouchableOpacity } from "react-native";
 import * as Progress from 'react-native-progress';
 import { getGiftbyId } from "../../services/giftService";
 import { useAuth } from "../../helpers/AuthContext";
@@ -13,37 +13,38 @@ import {
   loadGoalFromSQLite,
   loadLatestGoalFromSQLite,
 } from '../../../Database/GoalsDatabase';
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
-const BASE_URL = "http://172.20.10.4:3002";
+const BASE_URL = "http://172.20.10.7:3002";
 
-const BadgeItem = ({ item }) => (
-  <View style={styles.badgeContainer}>
-    {item.icon ? (
+const BadgeItem = ({ item }) => {
+  const navigation = useNavigation();
+  return (
+    <TouchableOpacity
+      style={styles.badgeContainer}
+      onPress={() => navigation.navigate("BadgeDetail", { badge: item })}
+    >
       <Image
         source={{ uri: `${BASE_URL}${item.icon.replace("app/public", "")}` }}
         style={styles.badgeImage}
-        onError={(e) => console.log("Lỗi tải ảnh:", e.nativeEvent.error)}
         tintColor={item.status ? "#FFD700" : "#A0A0A0"}
       />
-    ) : (
-      <Text>Không có ảnh</Text>
-    )}
-    <Text style={styles.badgeText}>{item.giftname}</Text>
-    <Progress.Bar
-      progress={item.progress || 0}
-      width={80}
-      height={5}
-      color="#6C63FF"
-      unfilledColor="#DDD"
-      borderWidth={0}
-      borderRadius={5}
-    />
-    <Text style={styles.progressText}>
-      {Math.round(item.progress * item.targetSteps)} / {item.targetSteps} bước
-    </Text>
-  </View>
-);
+      <Text style={styles.badgeText}>{item.giftname}</Text>
+      <Progress.Bar
+        progress={item.progress || 0}
+        width={80}
+        height={5}
+        color="#6C63FF"
+        unfilledColor="#DDD"
+        borderWidth={0}
+        borderRadius={5}
+      />
+      <Text style={styles.progressText}>
+        {Math.round(item.progress * item.targetSteps)} / {item.targetSteps} bước
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 function Gift() {
   const [gifts, setGifts] = useState([]);
@@ -56,9 +57,9 @@ function Gift() {
   useEffect(() => {
     const initDB = async () => {
       try {
-        const database = await openDB(); // Dùng openDB từ file của bạn
-        await createTable(database); // Tạo bảng activity
-        await createGoalsTable(database); // Tạo bảng goals
+        const database = await openDB();
+        await createTable(database);
+        await createGoalsTable(database);
         setDb(database);
         console.log("Database initialized");
       } catch (error) {
@@ -92,7 +93,7 @@ function Gift() {
           // Nếu không có mục tiêu hôm nay, lấy mục tiêu gần nhất
           goal = await loadLatestGoalFromSQLite(db, userId, today);
         }
-        const goalSteps = goal ? goal.steps : 6000; // Mặc định 5000 nếu không có mục tiêu
+        const goalSteps = goal ? goal.steps : 6000;
         setUserGoalSteps(goalSteps);
         console.log("User goal steps loaded from SQLite:", goalSteps);
       } catch (error) {
@@ -108,7 +109,7 @@ function Gift() {
     if (giftname.includes("20k Bước")) return 20000;
     if (giftname.includes("Mục tiêu 200%")) return userGoalSteps * 2;
     if (giftname.includes("Mục tiêu 300%")) return userGoalSteps * 3;
-    if (giftname.includes("Đạt được mục tiêu")) return userGoalSteps;
+    if (giftname.includes("Huy hiệu cảnh binh")) return userGoalSteps;
     return 0;
   };
 
@@ -117,7 +118,6 @@ function Gift() {
     try {
       if (userId) {
         const response = await getGiftbyId(userId);
-        console.log("API response:", response);
         if (response && Array.isArray(response)) {
           const formattedGifts = response.map(gift => {
             const targetSteps = getTargetSteps(gift.giftname);

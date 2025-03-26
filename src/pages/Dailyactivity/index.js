@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, ScrollView, Platform, StatusBar, PermissionsAndroid } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, StatusBar, PermissionsAndroid, TouchableOpacity } from 'react-native';
 import { Pedometer } from 'expo-sensors';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import { createTable, saveStepsToSQLite, loadStepsFromSQLite, assignUserIdToOldD
 import { loadGoalFromSQLite, createGoalsTable, loadLatestGoalFromSQLite } from '../../../Database/GoalsDatabase'
 import { loadBodyFromSQLite, loadLatestBodyFromSQLite } from '../../../Database/BodyDatabase';
 import { useAuth } from '../../helpers/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
 // Hàm lấy tên ngày hiện tại
 const getDayName = () => {
@@ -42,6 +43,8 @@ const Dailyactivity = () => {
   const [db, setDb] = useState(null);
   const { userId } = useAuth()
   const today = getTodayDate();
+  const navigation = useNavigation();
+  const handleDailyhistory = () => navigation.navigate('Lịch sử ngày');
 
   // Lưu số bước vào SQLite
   const saveSteps = async (updatedSteps, database, bodyData) => {
@@ -209,7 +212,6 @@ const Dailyactivity = () => {
     if (Platform.OS === 'android') {
       requestActivityPermission();
     }
-
     return () => {
       if (subscription) {
         subscription.remove();
@@ -290,8 +292,11 @@ const Dailyactivity = () => {
             option3="Tháng"
             onSelectSwitch={onSelectSwitch}
           />
+
         </View>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+
+
           {dateTab === 1 && (
             <View>
               <View style={styles.circular}>
@@ -316,12 +321,19 @@ const Dailyactivity = () => {
                 <Text style={styles.goalText}>Mục tiêu {goalSteps}</Text>
                 <FontAwesome5 name="walking" size={24} color="#00BFFF" style={styles.stepIcon} />
               </View>
+              <TouchableOpacity
+                style={styles.historyButton}
+                onPress={handleDailyhistory} // Chuyển đến màn hình lịch sử
+              >
+                <FontAwesome5 name="history" size={24} color="#00BFFF" />
+                <Text style={styles.historyButtonText}>Lịch sử</Text>
+              </TouchableOpacity>
 
               <View style={styles.textdesign}>
                 <View style={styles.textItem}>
                   <Text style={styles.text}>KHOẢNG CÁCH</Text>
                   <Text style={[styles.text, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>
-                    {distance} m
+                    {distance} km
                   </Text>
                   <Bar
                     progress={distance / goalDistance}
@@ -390,7 +402,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    marginTop: 40,
+    marginTop: 15,
     width: '100%',
   },
   textItem: {
@@ -416,6 +428,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '19%',
     fontSize: 35,
+  },
+
+  historyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 15,
+    justifyContent: "center"
+  },
+  historyButtonText: {
+    marginLeft: 5,
+    color: '#00BFFF',
+    fontWeight: 'bold',
   },
 });
 

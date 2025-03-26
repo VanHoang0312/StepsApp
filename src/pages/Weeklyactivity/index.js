@@ -138,7 +138,7 @@ function WeeklyActivity() {
             <Text style={styles.infoLabel}>CALORIES</Text>
           </View>
           <View style={styles.infoBox}>
-            <Text style={[styles.infoValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>{distance} m</Text>
+            <Text style={[styles.infoValue, { fontWeight: 'bold', color: '#000000', fontSize: 20 }]}>{distance} km</Text>
             <Text style={styles.infoLabel}>KHOẢNG CÁCH</Text>
           </View>
           <View style={styles.infoBox}>

@@ -44,7 +44,7 @@ const Linechart = () => {
               const d = new Date(date);
               return defaultWeekDays[d.getDay()]; // Lấy tên thứ tương ứng
             });
-        
+
             setWeeklySteps(sortedData);
             setRotatedLabels(sortedLabels);
           },

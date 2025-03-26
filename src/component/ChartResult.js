@@ -3,6 +3,7 @@ import { View, Dimensions } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { openDB } from "../../Database/database";
 import { createTable, loadStepsFromSQLite } from "../../Database/DailyDatabase";
+import { useAuth } from "../helpers/AuthContext";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -10,13 +11,14 @@ const StepComparisonChart = ({ average }) => {
   const [labels, setLabels] = useState(["0:00", "", "00:00"]);
   const [dataSteps, setDataSteps] = useState([0, 0, 0]);
   const today = new Date().toISOString().split("T")[0];
+  const { userId } = useAuth()
 
   useEffect(() => {
     const fetchSteps = async () => {
       try {
         const db = await openDB();
         await createTable(db);
-        const loadData = await loadStepsFromSQLite(db, today);
+        const loadData = await loadStepsFromSQLite(db, userId, today);
         const steps = loadData?.steps ?? 0;
 
         const now = new Date();

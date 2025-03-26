@@ -109,7 +109,7 @@ const loadStepsFromSQLite = async (db, userId, day) => {
             } else {
               console.log("No data found for today, defaulting to 0.");
               resolve({
-                userId: null,
+                userId: userId,
                 day: day,
                 steps: 0,
                 calories: 0,

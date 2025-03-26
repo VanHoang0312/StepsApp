@@ -7,6 +7,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import Result from '../../src/pages/Result';
 import DailyStack from './DailyStack';
 import SettingStack from './SettingStack';
+import ResultStack from './ResultStack';
 
 
 const Tab = createBottomTabNavigator();
@@ -53,7 +54,7 @@ function TabLayout() {
         )
       }} />
 
-      <Tab.Screen name='Kết quả' component={Result} options={{
+      <Tab.Screen name='Kết quả' component={ResultStack} options={{
         headerShown: false,
         tabBarIcon: ({ color, size }) => (
           <Icon name='assessment' size={size} color={color} />
