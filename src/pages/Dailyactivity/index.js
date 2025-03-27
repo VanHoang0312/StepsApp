@@ -42,6 +42,7 @@ const Dailyactivity = () => {
   const [goalActiveTime, setGoalActiveTime] = useState(30);
   const [db, setDb] = useState(null);
   const { userId } = useAuth()
+  console.log("UserId: ", userId)
   const today = getTodayDate();
   const navigation = useNavigation();
   const handleDailyhistory = () => navigation.navigate('Lịch sử ngày');
@@ -67,7 +68,7 @@ const Dailyactivity = () => {
       setLastDay(currentDay);
     } else {
       const now = Date.now();
-      console.log("⏱️ Thời gian kể từ lần lưu cuối: ", now - lastSavedTime);
+
       setLastSavedTime(now);
       console.log("💾 Đang lưu dữ liệu vào SQLite với userId", userId);
       await saveStepsToSQLite(database, userId, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
@@ -89,8 +90,7 @@ const Dailyactivity = () => {
     setDistance(savedData.distance);
     setActiveTime(savedData.activeTime);
 
-
-    let lastSteps = null;
+    let lastSteps = null; // Khởi tạo từ SQLite thay vì null;
     console.log("⏳ Chờ cảm biến cập nhật...");
 
     const pedometerSubscription = Pedometer.watchStepCount(async (result) => {
@@ -118,7 +118,8 @@ const Dailyactivity = () => {
             .then((bodyData) => bodyData || loadLatestBodyFromSQLite(database, userId, today))
             .then((bodyData) => {
               console.log("✅ Dữ liệu body được sử dụng:", bodyData || "Mặc định");
-              saveSteps(updatedSteps, database, bodyData);
+              saveSteps(updatedSteps, database, bodyData, userId);
+              //lastSteps = result.steps; // Cập nhật lastSteps trong callback
             })
             .catch((error) => console.error("🚨 Lỗi khi tải body:", error));
 
