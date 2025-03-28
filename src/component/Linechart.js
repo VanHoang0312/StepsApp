@@ -4,14 +4,14 @@ import { LineChart } from 'react-native-chart-kit';
 import { openDB } from '../../Database/database';
 
 
-const Linechart = () => {
+const Linechart = ({ userId, db }) => {
   const defaultWeekDays = ["CN", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
   const [weeklySteps, setWeeklySteps] = useState(new Array(7).fill(0));
   const [rotatedLabels, setRotatedLabels] = useState(defaultWeekDays);
 
   const loadWeeklyStepsFromSQLite = async () => {
     try {
-      const db = await openDB(); // Mở database
+      //const db = await openDB(); // Mở database
       const today = new Date();
       const days = [];
 
@@ -58,8 +58,10 @@ const Linechart = () => {
 
 
   useEffect(() => {
-    loadWeeklyStepsFromSQLite();
-  }, []);
+    if (db && userId) {
+      loadWeeklyStepsFromSQLite(db);
+    }
+  }, [db, userId]); // Tải lại khi db hoặc userId thay đổi
 
   return (
     <View style={{ marginTop: 40 }}>

@@ -158,5 +158,5 @@ export {
   loadBodyFromSQLite,
   loadLatestBodyFromSQLite,
   getAllbodyData,
-  assignUserIdToOldBody, 
+  assignUserIdToOldBody,
 };

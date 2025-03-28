@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import * as Progress from 'react-native-progress';
 
-const BASE_URL = "http://172.20.10.7:3002";
+const BASE_URL = "http://192.168.1.172:3002";
 
 const BadgeDetail = () => {
   const route = useRoute();

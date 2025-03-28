@@ -15,7 +15,7 @@ import {
 } from '../../../Database/GoalsDatabase';
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
-const BASE_URL = "http://172.20.10.7:3002";
+const BASE_URL = "http://192.168.1.172:3002";
 
 const BadgeItem = ({ item }) => {
   const navigation = useNavigation();

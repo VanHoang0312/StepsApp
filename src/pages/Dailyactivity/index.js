@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, ScrollView, Platform, StatusBar, PermissionsAndroid, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, StatusBar, PermissionsAndroid, TouchableOpacity, RefreshControl } from 'react-native';
 import { Pedometer } from 'expo-sensors';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,12 +41,39 @@ const Dailyactivity = () => {
   const [goalDistance, setGoalDistance] = useState(3);
   const [goalActiveTime, setGoalActiveTime] = useState(30);
   const [db, setDb] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const { userId } = useAuth()
   console.log("UserId: ", userId)
   const today = getTodayDate();
   const navigation = useNavigation();
   const handleDailyhistory = () => navigation.navigate('Lịch sử ngày');
 
+
+  // Hàm làm mới dữ liệu
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (db) {
+        await fetchGoal(db);
+        const savedData = await loadStepsFromSQLite(db, userId, today);
+        setStepCount(savedData.steps);
+        setCalories(savedData.calories);
+        setDistance(savedData.distance);
+        setActiveTime(savedData.activeTime);
+        console.log("✅ Dữ liệu đã làm mới từ SQLite:", savedData);
+
+        // Hủy và đăng ký lại subscription để đảm bảo dữ liệu cảm biến mới nhất
+        // if (subscription) {
+        //   subscription.remove();
+        // }
+        // await subscribe(db);
+      }
+    } catch (error) {
+      console.error("🚨 Lỗi khi làm mới dữ liệu:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
   // Lưu số bước vào SQLite
   const saveSteps = async (updatedSteps, database, bodyData) => {
     const { stepLength = 60, weight = 60 } = bodyData || {};
@@ -118,8 +145,7 @@ const Dailyactivity = () => {
             .then((bodyData) => bodyData || loadLatestBodyFromSQLite(database, userId, today))
             .then((bodyData) => {
               console.log("✅ Dữ liệu body được sử dụng:", bodyData || "Mặc định");
-              saveSteps(updatedSteps, database, bodyData, userId);
-              //lastSteps = result.steps; // Cập nhật lastSteps trong callback
+              saveSteps(updatedSteps, database, bodyData);
             })
             .catch((error) => console.error("🚨 Lỗi khi tải body:", error));
 
@@ -295,9 +321,16 @@ const Dailyactivity = () => {
           />
 
         </View>
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-
-
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#00BFFF"]} // Màu của vòng xoay khi làm mới
+              tintColor="#00BFFF" // Màu trên iOS
+            />
+          }
+        >
           {dateTab === 1 && (
             <View>
               <View style={styles.circular}>
@@ -377,7 +410,7 @@ const Dailyactivity = () => {
                   />
                 </View>
               </View>
-              <Linechart />
+              <Linechart userId={userId} db={db} />
             </View>
           )}
 
