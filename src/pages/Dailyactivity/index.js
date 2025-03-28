@@ -61,12 +61,6 @@ const Dailyactivity = () => {
         setDistance(savedData.distance);
         setActiveTime(savedData.activeTime);
         console.log("✅ Dữ liệu đã làm mới từ SQLite:", savedData);
-
-        // Hủy và đăng ký lại subscription để đảm bảo dữ liệu cảm biến mới nhất
-        // if (subscription) {
-        //   subscription.remove();
-        // }
-        // await subscribe(db);
       }
     } catch (error) {
       console.error("🚨 Lỗi khi làm mới dữ liệu:", error);
@@ -74,8 +68,10 @@ const Dailyactivity = () => {
       setRefreshing(false);
     }
   };
+
+
   // Lưu số bước vào SQLite
-  const saveSteps = async (updatedSteps, database, bodyData) => {
+  const saveSteps = async (updatedSteps, database, bodyData, userIdFromContext) => {
     const { stepLength = 60, weight = 60 } = bodyData || {};
 
     const updatedDistance = ((updatedSteps * stepLength) / 100000).toFixed(2); // km
@@ -95,30 +91,33 @@ const Dailyactivity = () => {
       setLastDay(currentDay);
     } else {
       const now = Date.now();
-
       setLastSavedTime(now);
-      console.log("💾 Đang lưu dữ liệu vào SQLite với userId", userId);
-      await saveStepsToSQLite(database, userId, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
+      console.log("💾 Đang lưu dữ liệu vào SQLite với userId:", userIdFromContext);
+      await saveStepsToSQLite(database, userIdFromContext, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
     }
   };
 
   // Hàm theo dõi bước chân
-  const subscribe = async (database) => {
+  const subscribe = async (database, currentUserId) => {
     const isAvailable = await Pedometer.isAvailableAsync();
     if (!isAvailable) {
       console.warn("🚫 Cảm biến bước chân không khả dụng!");
       return;
     }
 
-    let savedData = await loadStepsFromSQLite(database, userId, today);
+    let savedData = await loadStepsFromSQLite(database, currentUserId, today);
     console.log("✅ Dữ liệu đã lưu từ SQLite:", savedData);
     setStepCount(savedData.steps);
     setCalories(savedData.calories);
     setDistance(savedData.distance);
     setActiveTime(savedData.activeTime);
 
-    let lastSteps = null; // Khởi tạo từ SQLite thay vì null;
+    let lastSteps = savedData.steps; // Khởi tạo từ dữ liệu đã lưu
     console.log("⏳ Chờ cảm biến cập nhật...");
+
+    if (subscription) {
+      subscription.remove();
+    }
 
     const pedometerSubscription = Pedometer.watchStepCount(async (result) => {
       console.log("👣 Cảm biến đếm:", result.steps);
@@ -141,19 +140,18 @@ const Dailyactivity = () => {
           const updatedSteps = prev + stepsToAdd;
           console.log(`📊 Đếm thêm: ${stepsToAdd}, Tổng bước: ${updatedSteps}`);
 
-          loadBodyFromSQLite(database, userId, today)
-            .then((bodyData) => bodyData || loadLatestBodyFromSQLite(database, userId, today))
+          loadBodyFromSQLite(database, currentUserId, today)
+            .then((bodyData) => bodyData || loadLatestBodyFromSQLite(database, currentUserId, today))
             .then((bodyData) => {
               console.log("✅ Dữ liệu body được sử dụng:", bodyData || "Mặc định");
-              saveSteps(updatedSteps, database, bodyData);
+              saveSteps(updatedSteps, database, bodyData, currentUserId); // Truyền userId hiện tại
             })
             .catch((error) => console.error("🚨 Lỗi khi tải body:", error));
 
           return updatedSteps;
         });
+        lastSteps = result.steps;
       }
-
-      lastSteps = result.steps;
     });
 
     setSubscription(pedometerSubscription);
@@ -227,25 +225,28 @@ const Dailyactivity = () => {
         const database = await openDB();
         setDb(database);
         await createTable(database);
-        await createGoalsTable(database)
-        //await deleteAllActivityData(database);
+        await createGoalsTable(database);
         await fetchGoal(database);
-        await subscribe(database);
+        if (userId) { // Chỉ gọi subscribe khi có userId
+          await subscribe(database, userId);
+        }
       } catch (error) {
         console.error('Database initialization failed:', error);
       }
     };
     initializeDB();
+
     if (Platform.OS === 'android') {
       requestActivityPermission();
     }
+
     return () => {
       if (subscription) {
         subscription.remove();
         setSubscription(null);
       }
     };
-  }, []);
+  }, [userId]);
 
   // Reload dữ liệu khi userId thay đổi (đăng nhập/đăng xuất)
   useEffect(() => {
@@ -254,26 +255,22 @@ const Dailyactivity = () => {
     const reloadData = async () => {
       console.log("🔄 Reload dữ liệu với userId:", userId);
       if (userId) {
-        // Gán userId cho dữ liệu cũ khi đăng nhập
         await assignUserIdToOldData(db, userId);
+        const savedData = await loadStepsFromSQLite(db, userId, today);
+        console.log("✅ Dữ liệu đã lưu từ SQLite sau reload:", savedData);
+        setStepCount(savedData.steps);
+        setCalories(savedData.calories);
+        setDistance(savedData.distance);
+        setActiveTime(savedData.activeTime);
       } else {
-        // Đặt userId về NULL khi đăng xuất
         await db.transaction(async (tx) => {
-          await tx.executeSql('UPDATE activity SET userId = NULL WHERE day = ?', [today]);
+          await tx.executeSql(
+            'UPDATE activity SET userId = NULL WHERE day != ? AND userId IS NOT NULL',
+            [today]
+          );
         });
       }
-      // Tải lại dữ liệu sau khi cập nhật userId
       await fetchGoal(db);
-      const savedData = await loadStepsFromSQLite(db, userId, today);
-      console.log("✅ Dữ liệu đã lưu từ SQLite sau reload:", savedData);
-      setStepCount(savedData.steps);
-      setCalories(savedData.calories);
-      setDistance(savedData.distance);
-      setActiveTime(savedData.activeTime);
-      if (subscription) {
-        subscription.remove();
-      }
-      await subscribe(db);
     };
     reloadData();
   }, [db, userId]);

@@ -29,59 +29,55 @@ const saveStepsToSQLite = async (db, userId, steps, distance, calories, activeTi
     const today = new Date().toISOString().split('T')[0];
     console.log("🔍 Bắt đầu lưu dữ liệu:", { userId, today, steps, distance, calories, activeTime });
 
-    db.transaction((tx) => {
-      // Kiểm tra nếu đã có dữ liệu hôm nay với userId = NULL hoặc userId hiện tại
+    await db.transaction(async (tx) => {
+      // Kiểm tra bản ghi hôm nay
       tx.executeSql(
         'SELECT * FROM activity WHERE day = ?',
         [today],
-        (_, results) => {
-          console.log("📋 Kết quả SELECT:", results.rows.length > 0 ? results.rows.item(0) : "Không có bản ghi");
+        (_, { rows }) => {
+          console.log("📋 Kết quả SELECT (raw):", rows.length > 0 ? rows.item(0) : "Không có bản ghi");
 
-          if (results.rows.length > 0) {
-            // Nếu đã có dữ liệu thì cập nhật
+          if (rows.length > 0) {
+            // Cập nhật bản ghi hiện có
             tx.executeSql(
               'UPDATE activity SET userId = ?, steps = ?, distance = ?, calories = ?, activeTime = ? WHERE day = ?',
               [userId, steps, distance, calories, activeTime, today],
               (_, { rowsAffected }) => {
                 console.log(`✅ Updated ${rowsAffected} record(s) with userId:`, userId);
-                resolve();
+                if (rowsAffected === 0) {
+                  console.warn("⚠️ Không có bản ghi nào được cập nhật!");
+                }
               },
               (_, error) => {
-                console.error('🚨 Lỗi khi UPDATE:', error);
-                reject(error);
+                console.error("🚨 Lỗi khi UPDATE:", error.message);
               }
             );
           } else {
-            // Nếu chưa có dữ liệu thì thêm mới
+            // Thêm bản ghi mới
             tx.executeSql(
               'INSERT INTO activity (userId, day, steps, distance, calories, activeTime) VALUES (?, ?, ?, ?, ?, ?)',
               [userId, today, steps, distance, calories, activeTime],
               (_, { insertId }) => {
                 console.log('✅ Inserted new record with id:', insertId, 'for', today, 'with userId:', userId);
-                resolve();
               },
               (_, error) => {
-                console.error('🚨 Lỗi khi INSERT:', error);
-                reject(error);
+                console.error("🚨 Lỗi khi INSERT:", error.message);
               }
             );
           }
         },
         (_, error) => {
-          console.error('🚨 Lỗi khi SELECT:', error);
-          reject(error);
+          console.error("🚨 Lỗi khi SELECT:", error.message);
         }
       );
     });
 
     console.log("💾 Hoàn tất lưu dữ liệu vào SQLite");
-
-    // Kiểm tra dữ liệu ngay sau khi lưu
     const allData = await getAllActivityData(db);
     console.log("🔎 Kiểm tra sau khi lưu:", allData);
   } catch (error) {
-    console.error('🚨 Lỗi tổng quát khi lưu dữ liệu vào SQLite:', error);
-    throw error; // Ném lỗi để hàm gọi xử lý
+    console.error('🚨 Lỗi tổng quát khi lưu dữ liệu vào SQLite:', error.message);
+    throw error;
   }
 };
 
