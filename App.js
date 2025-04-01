@@ -39,12 +39,11 @@ import { Provider } from 'react-redux';
 import { AuthProvider } from './src/helpers/AuthContext';
 import * as SplashScreen from 'expo-splash-screen';
 
-// Giữ splash screen hiển thị trong khi ứng dụng đang tải
 SplashScreen.preventAutoHideAsync();
 
 // Tùy chọn animation cho splash screen (tùy chọn)
 SplashScreen.setOptions({
-  duration: 1000, // Thời gian animation (ms)
+  duration: 5000, // Thời gian animation (ms)
   fade: true,     // Hiệu ứng mờ dần
 });
 
@@ -56,17 +55,11 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
-        // Thực hiện các tác vụ khởi tạo
-        await registerBackgroundTask(); // Giả sử đây là promise, nếu không thì bỏ await
-        // Bạn có thể thêm các tác vụ khác như tải font, API calls, v.v.
-        // Ví dụ: await Font.loadAsync({...});
+        await registerBackgroundTask();
 
-        // Tạm trì hoãn 2 giây để mô phỏng quá trình tải (có thể xóa nếu không cần)
-        await new Promise((resolve) => setTimeout(resolve, 2000));
       } catch (e) {
         console.warn('Error during app preparation:', e);
       } finally {
-        // Đánh dấu ứng dụng đã sẵn sàng
         setAppIsReady(true);
       }
     }
@@ -76,23 +69,21 @@ export default function App() {
 
   const onLayoutRootView = useCallback(() => {
     if (appIsReady) {
-      // Ẩn splash screen khi root view đã render xong
+
       SplashScreen.hideAsync();
     }
   }, [appIsReady]);
 
-  // Nếu ứng dụng chưa sẵn sàng, không render gì cả
   if (!appIsReady) {
     return null;
   }
 
-  // Render giao diện chính khi đã sẵn sàng
   return (
     <Provider store={store}>
       <AuthProvider>
         <View
-          style={{ flex: 1 }} // Đảm bảo View bao quanh toàn bộ nội dung
-          onLayout={onLayoutRootView} // Gắn sự kiện onLayout
+          style={{ flex: 1 }}
+          onLayout={onLayoutRootView}
         >
           <NavigationContainer>
             <TabLayout />
