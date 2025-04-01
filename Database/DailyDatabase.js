@@ -220,13 +220,12 @@ const deleteAllActivityData = async (db) => {
   }
 };
 
-
 export {
   createTable,
   saveStepsToSQLite,
   loadStepsFromSQLite,
   getActivityByDay,
   getAllActivityData,
-  assignUserIdToOldData, // Thêm hàm mới
-  deleteAllActivityData
+  assignUserIdToOldData, 
+  deleteAllActivityData,
 };

@@ -11,7 +11,7 @@ import Weeklyactivity from '../Weeklyactivity';
 import Monthlyactivity from '../Monthlyactivity';
 import Linechart from '../../component/Linechart';
 import { openDB } from '../../../Database/database';
-import { createTable, saveStepsToSQLite, loadStepsFromSQLite, assignUserIdToOldData, deleteAllActivityData } from "../../../Database/DailyDatabase"
+import { createTable, saveStepsToSQLite, loadStepsFromSQLite, assignUserIdToOldData, deleteAllActivityData, deleteLatestActivityData } from "../../../Database/DailyDatabase"
 import { loadGoalFromSQLite, createGoalsTable, loadLatestGoalFromSQLite } from '../../../Database/GoalsDatabase'
 import { loadBodyFromSQLite, loadLatestBodyFromSQLite } from '../../../Database/BodyDatabase';
 import { useAuth } from '../../helpers/AuthContext';
@@ -113,6 +113,7 @@ const Dailyactivity = () => {
     setActiveTime(savedData.activeTime);
 
     let lastSteps = savedData.steps; // Khởi tạo từ dữ liệu đã lưu
+    let isFirstReading = true; // Cờ để bỏ qua lần đọc đầu tiên từ cảm biến
     console.log("⏳ Chờ cảm biến cập nhật...");
 
     if (subscription) {
@@ -122,9 +123,16 @@ const Dailyactivity = () => {
     const pedometerSubscription = Pedometer.watchStepCount(async (result) => {
       console.log("👣 Cảm biến đếm:", result.steps);
 
-      if (lastSteps === null) {
+      // if (lastSteps === null) {
+      //   lastSteps = result.steps;
+      //   console.log("🔄 Đồng bộ lastSteps với cảm biến:", lastSteps);
+      //   return;
+      // }
+      if (isFirstReading) {
+        // Bỏ qua lần đầu tiên, đồng bộ lastSteps với giá trị cảm biến
         lastSteps = result.steps;
-        console.log("🔄 Đồng bộ lastSteps với cảm biến:", lastSteps);
+        isFirstReading = false;
+        console.log("🔄 Đồng bộ lastSteps với cảm biến ban đầu:", lastSteps);
         return;
       }
 
@@ -316,7 +324,6 @@ const Dailyactivity = () => {
             option3="Tháng"
             onSelectSwitch={onSelectSwitch}
           />
-
         </View>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}
           refreshControl={
