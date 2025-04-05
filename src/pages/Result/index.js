@@ -34,7 +34,6 @@ function Result() {
         if (getAlldata) {
           const stepsArray = getAlldata.map(item => item.steps);
           setAlldata(stepsArray);
-          console.log("Tất cả dữ liệu bước chân:", stepsArray);
         }
 
       } catch (error) {

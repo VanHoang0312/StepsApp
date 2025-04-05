@@ -15,7 +15,7 @@ import {
 } from '../../../Database/GoalsDatabase';
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
-const BASE_URL = "http://10.10.20.25:3002";
+const BASE_URL = "http://192.168.1.172:3002";
 
 const BadgeItem = ({ item }) => {
   const navigation = useNavigation();
@@ -76,7 +76,6 @@ function Gift() {
         const today = new Date().toISOString().split('T')[0];
         const data = await loadStepsFromSQLite(db, userId, today);
         setCurrentSteps(data.steps || 0);
-        console.log("Current steps loaded from SQLite:", data.steps);
       } catch (error) {
         console.error("Error loading steps:", error);
       }
@@ -95,7 +94,6 @@ function Gift() {
         }
         const goalSteps = goal ? goal.steps : 6000;
         setUserGoalSteps(goalSteps);
-        console.log("User goal steps loaded from SQLite:", goalSteps);
       } catch (error) {
         console.error("Error loading goal:", error);
       }

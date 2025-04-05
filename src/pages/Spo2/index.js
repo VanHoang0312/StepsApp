@@ -99,7 +99,6 @@ function Spo2() {
     setTypeRecord(type);
     manager.startDeviceScan(null, null, (error, device) => {
       if (error) {
-        console.log("Lỗi quét BLE:", error);
         return;
       }
       if (device && device.name) {
@@ -142,7 +141,6 @@ function Spo2() {
       startMonitoringSpO2(deviceConnection);
       setIsSpo2ModalVisible(true);
     } catch (error) {
-      console.log("Lỗi kết nối:", error);
       Alert.alert("Lỗi", `Không thể kết nối với thiết bị: ${error.message}`);
     } finally {
       setLoading(null);
@@ -152,10 +150,10 @@ function Spo2() {
   const debugDeviceServices = async (device) => {
     const services = await device.services();
     for (const service of services) {
-      console.log("Service UUID:", service.uuid);
+      // console.log("Service UUID:", service.uuid);
       const characteristics = await device.characteristicsForService(service.uuid);
       characteristics.forEach((char) => {
-        console.log(" - Characteristic UUID:", char.uuid, " | Notifiable:", char.isNotifiable);
+        // console.log(" - Characteristic UUID:", char.uuid, " | Notifiable:", char.isNotifiable);
       });
     }
   };

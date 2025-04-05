@@ -17,7 +17,7 @@ const createTable = async (db) => {
         )`
       );
     });
-    console.log("Table created successfully with userId column");
+
   } catch (error) {
     console.error("Error creating table:", error);
   }
@@ -93,7 +93,7 @@ const loadStepsFromSQLite = async (db, userId, day) => {
           (tx, results) => {
             if (results.rows.length > 0) {
               const row = results.rows.item(0);
-              console.log("Loaded data from SQLite:", row);
+
               resolve({
                 userId: row.userId || null,
                 day: row.day,
@@ -103,7 +103,7 @@ const loadStepsFromSQLite = async (db, userId, day) => {
                 activeTime: row.activeTime || 0
               });
             } else {
-              console.log("No data found for today, defaulting to 0.");
+
               resolve({
                 userId: userId,
                 day: day,
@@ -138,15 +138,15 @@ const getActivityByDay = async (db, day) => {
           (tx, results) => {
             if (results.rows.length > 0) {
               const row = results.rows.item(0);
-              console.log(`Data for ${day}:`, row);
+
               resolve(row);
             } else {
-              console.log(`No data found for ${day}`);
+
               resolve(null);
             }
           },
           (tx, error) => {
-            console.error(`Error fetching data for ${day}:`, error);
+
             reject(error);
           }
         );
@@ -226,6 +226,6 @@ export {
   loadStepsFromSQLite,
   getActivityByDay,
   getAllActivityData,
-  assignUserIdToOldData, 
+  assignUserIdToOldData,
   deleteAllActivityData,
 };

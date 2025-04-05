@@ -39,11 +39,10 @@ function Workout() {
   const getWeeklyActivitySum = async (db, userId, startDate, endDate) => {
     try {
       const allActivity = await getAllActivityData(db);
-      console.log("🔍 All activity data:", allActivity); // Debug toàn bộ dữ liệu
       const weeklyData = allActivity.filter(
         (item) => item.day >= startDate && item.day <= endDate && (item.userId === userId || item.userId === null)
       );
-      console.log(`🔍 Filtered activity từ ${startDate} đến ${endDate}:`, weeklyData); // Debug dữ liệu lọc
+     
 
       const total = weeklyData.reduce(
         (sum, item) => ({
@@ -55,10 +54,10 @@ function Workout() {
         { steps: 0, calories: 0, distance: 0, activeTime: 0 }
       );
 
-      console.log(`🔍 Tổng dữ liệu từ ${startDate} đến ${endDate}:`, total);
+   
       return total;
     } catch (error) {
-      console.error("Error calculating weekly activity sum:", error);
+     
       return { steps: 0, calories: 0, distance: 0, activeTime: 0 };
     }
   };
@@ -67,14 +66,14 @@ function Workout() {
   const getCurrentGoal = async (db, userId, currentDate) => {
     try {
       const allGoals = await getAllGoalsData(db);
-      console.log("🎯 All goals data:", allGoals); // Debug toàn bộ mục tiêu
+      
       const currentGoal = allGoals.find(
         (item) => item.day === currentDate && (item.userId === userId || item.userId === null)
       );
-      console.log(`🎯 Mục tiêu ngày ${currentDate}:`, currentGoal); // Debug mục tiêu hôm nay
+    
 
       if (!currentGoal) {
-        console.log("🎯 Không có mục tiêu hôm nay, dùng mặc định");
+      
         return { steps: 6000, calories: 300, distance: 5, activeTime: 30 }; // Mặc định
       }
 
@@ -85,7 +84,7 @@ function Workout() {
         activeTime: currentGoal.activeTime || 30,
       };
     } catch (error) {
-      console.error("Error fetching current goal:", error);
+     
       return { steps: 6000, calories: 300, distance: 5, activeTime: 30 };
     }
   };
@@ -98,7 +97,7 @@ function Workout() {
   // Hàm kiểm tra ngày và cập nhật thông báo
   const checkDayAndNotify = async () => {
     if (!db) {
-      console.log("⏳ Chưa có db, bỏ qua checkDayAndNotify");
+      
       return;
     }
 
@@ -133,7 +132,7 @@ function Workout() {
     if (parsedStoredWeek !== weekNumber && (dayOfWeek === 3 || dayOfWeek === 6 || dayOfWeek === 0)) {
       newNotifications = []; // Xóa tất cả thông báo cũ
       await AsyncStorage.setItem('currentWeek', weekNumber.toString());
-      console.log("📅 Tuần mới bắt đầu, xóa thông báo cũ và cập nhật tuần:", weekNumber);
+      
     }
 
     // Thêm thông báo mới dựa trên ngày
@@ -152,9 +151,7 @@ function Workout() {
     }
 
     setNotifications(newNotifications);
-    console.log("📅 Kiểm tra ngày:", todayStr, "Tuần:", weekNumber, "Thông báo hiện tại:", newNotifications);
-    console.log("🔍 Tổng hoạt động tuần:", activityTotal);
-    console.log("🎯 Mục tiêu hiện tại:", currentGoal);
+   
   };
 
   // Hàm làm mới dữ liệu
@@ -163,10 +160,10 @@ function Workout() {
     try {
       if (db) {
         await checkDayAndNotify(); // Tái sử dụng hàm để làm mới dữ liệu
-        console.log("✅ Dữ liệu đã được làm mới");
+       
       }
     } catch (error) {
-      console.error("🚨 Lỗi khi làm mới dữ liệu:", error);
+      
     } finally {
       setRefreshing(false);
     }
@@ -176,7 +173,6 @@ function Workout() {
   useEffect(() => {
     const initializeDB = async () => {
       const database = await openDB();
-      console.log("🔗 Đã mở database:", database ? "Có" : "Không");
       setDb(database);
     };
     initializeDB();

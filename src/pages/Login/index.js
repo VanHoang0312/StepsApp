@@ -38,7 +38,6 @@ const Login = () => {
       }
     } catch (error) {
       Alert.alert("Lỗi", "Không thể kết nối đến server. Vui lòng thử lại!");
-      console.error("Login error:", error);
     }
     setLoading(false);
   };

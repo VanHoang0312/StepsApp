@@ -43,12 +43,14 @@ const Dailyactivity = () => {
   const [db, setDb] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const { userId } = useAuth()
-  console.log("UserId: ", userId)
   const today = getTodayDate();
   const navigation = useNavigation();
+  const [chartKey, setChartKey] = useState(0);
   const handleDailyhistory = () => navigation.navigate('Lịch sử ngày');
 
-
+  const reloadChart = () => {
+    setChartKey(prev => prev + 1); 
+  };
   // Hàm làm mới dữ liệu
   const onRefresh = async () => {
     setRefreshing(true);
@@ -60,10 +62,10 @@ const Dailyactivity = () => {
         setCalories(savedData.calories);
         setDistance(savedData.distance);
         setActiveTime(savedData.activeTime);
-        console.log("✅ Dữ liệu đã làm mới từ SQLite:", savedData);
+        reloadChart();
       }
     } catch (error) {
-      console.error("🚨 Lỗi khi làm mới dữ liệu:", error);
+      console.error("Lỗi khi làm mới dữ liệu:", error);
     } finally {
       setRefreshing(false);
     }
@@ -92,7 +94,6 @@ const Dailyactivity = () => {
     } else {
       const now = Date.now();
       setLastSavedTime(now);
-      console.log("💾 Đang lưu dữ liệu vào SQLite với userId:", userIdFromContext);
       await saveStepsToSQLite(database, userIdFromContext, updatedSteps, updatedDistance, updatedCalories, updatedActiveTime);
     }
   };
@@ -101,7 +102,6 @@ const Dailyactivity = () => {
   const subscribe = async (database, currentUserId) => {
     const isAvailable = await Pedometer.isAvailableAsync();
     if (!isAvailable) {
-      console.warn("🚫 Cảm biến bước chân không khả dụng!");
       return;
     }
 
@@ -123,13 +123,9 @@ const Dailyactivity = () => {
     const pedometerSubscription = Pedometer.watchStepCount(async (result) => {
       console.log("👣 Cảm biến đếm:", result.steps);
 
-      // if (lastSteps === null) {
-      //   lastSteps = result.steps;
-      //   console.log("🔄 Đồng bộ lastSteps với cảm biến:", lastSteps);
-      //   return;
-      // }
+    
       if (isFirstReading) {
-        // Bỏ qua lần đầu tiên, đồng bộ lastSteps với giá trị cảm biến
+        
         lastSteps = result.steps;
         isFirstReading = false;
         console.log("🔄 Đồng bộ lastSteps với cảm biến ban đầu:", lastSteps);
@@ -172,7 +168,7 @@ const Dailyactivity = () => {
         PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
       );
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log("Permission granted");
+        
       } else {
         console.log("Permission denied");
       }
@@ -184,15 +180,12 @@ const Dailyactivity = () => {
   const fetchGoal = async (database) => {
     try {
       if (!database) {
-        console.warn("⚠️ Thiếu database hoặc userId, sử dụng giá trị mặc định.");
         setGoalSteps(6000);
         setGoalCalories(200);
         setGoalDistance(3);
         setGoalActiveTime(30);
         return;
       }
-
-      console.log(`🔍 Đang tải mục tiêu với userId: ${userId}, ngày: ${today}`);
       // Load mục tiêu theo userId và ngày hiện tại
       const goal = await loadGoalFromSQLite(database, userId, today);
       if (goal) {
@@ -200,18 +193,14 @@ const Dailyactivity = () => {
         setGoalCalories(goal.calories || 200);
         setGoalDistance(goal.distance || 3);
         setGoalActiveTime(goal.activeTime || 30);
-        console.log('✅ Mục tiêu tải từ SQLite:', goal);
       } else {
-        console.log('⚠️ Không có mục tiêu cho hôm nay, thử lấy mục tiêu gần nhất...');
         const latestGoal = await loadLatestGoalFromSQLite(database, userId, today);
         if (latestGoal) {
           setGoalSteps(latestGoal.steps || 6000);
           setGoalCalories(latestGoal.calories || 200);
           setGoalDistance(latestGoal.distance || 3);
           setGoalActiveTime(latestGoal.activeTime || 30);
-          console.log('✅ Mục tiêu gần nhất tải từ SQLite:', latestGoal);
         } else {
-          console.log('⚠️ Không có mục tiêu nào, dùng giá trị mặc định.');
           setGoalSteps(6000);
           setGoalCalories(200);
           setGoalDistance(3);
@@ -219,7 +208,6 @@ const Dailyactivity = () => {
         }
       }
     } catch (error) {
-      console.error('🚨 Lỗi khi tải mục tiêu:', error);
       setGoalSteps(6000);
       setGoalCalories(200);
       setGoalDistance(3);
@@ -235,7 +223,7 @@ const Dailyactivity = () => {
         await createTable(database);
         await createGoalsTable(database);
         await fetchGoal(database);
-        if (userId) { // Chỉ gọi subscribe khi có userId
+        if (userId) { 
           await subscribe(database, userId);
         }
       } catch (error) {
@@ -261,11 +249,10 @@ const Dailyactivity = () => {
     if (!db) return;
 
     const reloadData = async () => {
-      console.log("🔄 Reload dữ liệu với userId:", userId);
+      
       if (userId) {
         await assignUserIdToOldData(db, userId);
         const savedData = await loadStepsFromSQLite(db, userId, today);
-        console.log("✅ Dữ liệu đã lưu từ SQLite sau reload:", savedData);
         setStepCount(savedData.steps);
         setCalories(savedData.calories);
         setDistance(savedData.distance);
@@ -283,16 +270,16 @@ const Dailyactivity = () => {
     reloadData();
   }, [db, userId]);
 
-  useEffect(() => {
-    console.log('Step count updated for UI:', stepCount);
-  }, [stepCount]);
+  // useEffect(() => {
+  //   console.log('Step count updated for UI:', stepCount);
+  // }, [stepCount]);
 
   // Cập nhật mục tiêu khi màn hình được focus
   useFocusEffect(
     React.useCallback(() => {
       if (!db) return;
-      console.log("🔄 Focus màn hình Dailyactivity với userId:", userId);
       fetchGoal(db);
+      //reloadChart();
     }, [db, userId])
   );
 
@@ -414,7 +401,7 @@ const Dailyactivity = () => {
                   />
                 </View>
               </View>
-              <Linechart userId={userId} db={db} />
+              <Linechart userId={userId} db={db} key={chartKey} reloadChart={reloadChart} />
             </View>
           )}
 

@@ -18,7 +18,6 @@ const createBodyTable = async (db) => {
         )`
       );
     });
-    console.log('Body table created successfully with userId column');
   } catch (error) {
     console.error('Error creating body table:', error);
   }
@@ -39,17 +38,14 @@ const saveBodyToSQLite = async (db, userId, day, gender, bodysize, stepLength, w
          WHERE day = ? `,
         [gender, bodysize, stepLength, weight, birthYear, userId, day]
       );
-      console.log(`Body for ${day} updated for userId: ${userId}`);
     } else {
       // Thêm mới nếu chưa có
       await db.executeSql(
         `INSERT INTO body (userId, day, gender, bodysize, stepLength, weight, birthYear) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [userId, day, gender, bodysize, stepLength, weight, birthYear]
       );
-      console.log(`New body for ${day} inserted for userId: ${userId}`);
     }
   } catch (error) {
-    console.error('Error saving body:', error);
   }
 };
 
@@ -57,7 +53,7 @@ const saveBodyToSQLite = async (db, userId, day, gender, bodysize, stepLength, w
 const loadBodyFromSQLite = (db, userId, day) => {
   return new Promise((resolve, reject) => {
     if (!db) {
-      console.error('Database connection not established!');
+
       reject(new Error('Database not initialized'));
       return;
     }
@@ -69,15 +65,15 @@ const loadBodyFromSQLite = (db, userId, day) => {
         (_, { rows }) => {
           if (rows.length > 0) {
             const body = rows.item(0);
-            console.log(`Body loaded for ${day}:`, body);
+
             resolve(body);
           } else {
-            console.warn(`No body found for ${day}`);
+
             resolve(null);
           }
         },
         (_, error) => {
-          console.error('Error loading body:', error);
+
           reject(error);
         }
       );
@@ -94,7 +90,6 @@ const loadLatestBodyFromSQLite = async (db, userId, today) => {
     );
     return result[0].rows.length > 0 ? result[0].rows.item(0) : null;
   } catch (error) {
-    console.error('Error loading latest body:', error);
     return null;
   }
 };

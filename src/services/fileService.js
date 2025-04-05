@@ -1,7 +1,7 @@
 import RNFS from "react-native-fs";
 import axios from "axios";
 
-const API_DOMAIN = "http://10.10.20.25:3002/api/";
+const API_DOMAIN = "http://192.168.1.172:3002/api/";
 
 export const uploadFile = async (fileUri, fileName) => {
   try {

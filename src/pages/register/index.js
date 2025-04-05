@@ -21,7 +21,6 @@ const Register = () => {
     }
     try {
       const result = await user.createUser({ name, email, password });
-      console.log("jjj", result)
       if (result) {
         Alert.alert("Thành công", "Đăng ký thành công!", [
           { text: "OK", onPress: () => navigation.navigate('Login') }

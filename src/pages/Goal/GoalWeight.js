@@ -22,7 +22,6 @@ function GoalWeight() {
         setWeight(loadWeight.weight || 0);
         setBodysize(loadWeight.bodysize || 0)
       } catch (error) {
-        console.error('initDB failed:', error);
       }
     }
     initDB()

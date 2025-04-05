@@ -42,7 +42,6 @@ function WeeklyActivity() {
         date.setDate(firstDayOfWeek.getDate() + i); // Từ Thứ Hai đến Chủ Nhật
         return date.toISOString().split("T")[0];
       });
-      console.log(daysOfWeek);
 
       try {
         const weeklyData = await Promise.all(

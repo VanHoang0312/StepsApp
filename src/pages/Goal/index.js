@@ -49,7 +49,6 @@ function Goal() {
     try {
       const database = await openDB();
       if (!database) {
-        console.error('Database not initialized!');
         return;
       }
 

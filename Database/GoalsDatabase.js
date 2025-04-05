@@ -17,7 +17,7 @@ const createGoalsTable = async (db) => {
         )`
       );
     });
-    console.log('Goals table created successfully with userId column');
+
   } catch (error) {
     console.error('Error creating goals table:', error);
   }
@@ -39,7 +39,7 @@ export const saveGoalToSQLite = async (db, userId, day, steps, distance, calorie
          WHERE day = ?`,
         [steps, distance, calories, activeTime, userId, day]
       );
-      console.log(`Goal for ${day} updated with userId: ${userId}`);
+
     } else {
       // Thêm mới nếu chưa có bản ghi cho ngày đó
       await db.executeSql(
@@ -47,10 +47,10 @@ export const saveGoalToSQLite = async (db, userId, day, steps, distance, calorie
          VALUES (?, ?, ?, ?, ?, ?)`,
         [userId, day, steps, distance, calories, activeTime]
       );
-      console.log(`New goal for ${day} inserted with userId: ${userId}`);
+
     }
   } catch (error) {
-    console.error('Error saving goal:', error);
+
     throw error;
   }
 };
@@ -59,7 +59,7 @@ export const saveGoalToSQLite = async (db, userId, day, steps, distance, calorie
 export const loadGoalFromSQLite = (db, userId, day) => {
   return new Promise((resolve, reject) => {
     if (!db) {
-      console.error('Database connection not established!');
+
       reject(new Error('Database not initialized'));
       return;
     }
@@ -71,15 +71,15 @@ export const loadGoalFromSQLite = (db, userId, day) => {
         (_, { rows }) => {
           if (rows.length > 0) {
             const goal = rows.item(0);
-            console.log(`Goal loaded for ${day}:`, goal);
+
             resolve(goal);
           } else {
-            console.warn(`No goal found for ${day}`);
+
             resolve(null);
           }
         },
         (_, error) => {
-          console.error('Error loading goal:', error);
+
           reject(error);
         }
       );
@@ -96,7 +96,7 @@ export const loadLatestGoalFromSQLite = async (db, userId, today) => {
     );
     return result[0].rows.length > 0 ? result[0].rows.item(0) : null;
   } catch (error) {
-    console.error('Error loading latest goal:', error);
+
     return null;
   }
 };
@@ -157,5 +157,5 @@ export const deleteAllGoals = async (db) => {
 export {
   createGoalsTable,
   getAllGoalsData,
-  assignUserIdToOldGoals, 
+  assignUserIdToOldGoals,
 };

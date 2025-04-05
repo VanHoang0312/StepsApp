@@ -27,7 +27,6 @@ const StepComparisonChart = ({ average }) => {
         setLabels(["0:00", currentTimeLabel, "00:00"]);
         setDataSteps([0, steps, 0]);
       } catch (error) {
-        console.error("Lỗi khi tải dữ liệu steps:", error);
         setDataSteps([0, 0, 0]);
       }
     };
